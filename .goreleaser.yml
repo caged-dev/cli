@@ -1,0 +1,52 @@
+version: 2
+
+project_name: caged
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/caged
+    binary: caged
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X github.com/caged-dev/cli/internal/api.Version={{.Version}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+brews:
+  - name: caged
+    repository:
+      owner: caged-dev
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://caged.dev"
+    description: "CLI for the Caged AI Agent Sandbox Platform"
+    license: "MIT"
+    test: |
+      system "#{bin}/caged", "version"
