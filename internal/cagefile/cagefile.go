@@ -19,6 +19,7 @@ type Config struct {
 	NetworkMode  string            `yaml:"network_mode" json:"network_mode,omitempty"`
 	AllowedHosts []string          `yaml:"allowed_hosts" json:"allowed_hosts,omitempty"`
 	Secrets      []string          `yaml:"secrets" json:"secrets,omitempty"`
+	Packages     []string          `yaml:"packages" json:"packages,omitempty"` // Pre-install packages
 }
 
 // Resources defines sandbox resource limits.
@@ -107,5 +108,8 @@ func (c *Config) Merge(override Config) {
 		for k, v := range override.Env {
 			c.Env[k] = v
 		}
+	}
+	if len(override.Packages) > 0 {
+		c.Packages = override.Packages
 	}
 }

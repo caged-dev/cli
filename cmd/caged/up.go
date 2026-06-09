@@ -23,6 +23,7 @@ func cmdUp(args []string) error {
 	budgetFlag := fs.Float64("budget", 0, "Override budget in USD")
 	envStr := fs.String("env", "", "Additional env vars (KEY=VAL,KEY2=VAL2)")
 	configFile := fs.String("config", "", "Path to config file (default: .caged.yaml)")
+	packagesStr := fs.String("packages", "", "Override packages to pre-install (comma-separated)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -76,6 +77,9 @@ func cmdUp(args []string) error {
 	if *envStr != "" {
 		override.Env = parseEnvVars(*envStr)
 	}
+	if *packagesStr != "" {
+		override.Packages = strings.Split(*packagesStr, ",")
+	}
 
 	cfg.Merge(override)
 
@@ -104,6 +108,9 @@ func cmdUp(args []string) error {
 	}
 	if *repo != "" {
 		req.Repo = *repo
+	}
+	if len(cfg.Packages) > 0 {
+		req.Packages = cfg.Packages
 	}
 
 	fmt.Printf("Creating sandbox (template=%s", cfg.Template)

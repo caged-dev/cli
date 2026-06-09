@@ -55,6 +55,7 @@ type CreateSandboxRequest struct {
 	Env         map[string]string `json:"env,omitempty"`
 	Repo        string            `json:"repo,omitempty"`
 	BudgetUSD   float64           `json:"budget_usd,omitempty"`
+	Packages    []string          `json:"packages,omitempty"` // Pre-install packages
 }
 
 // APIError represents a structured API error response.

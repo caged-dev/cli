@@ -18,6 +18,7 @@ func cmdRun(args []string) error {
 	repo := fs.String("repo", "", "Git repository to clone")
 	envStr := fs.String("env", "", "Environment variables (KEY=VAL,KEY2=VAL2)")
 	budgetFlag := fs.Float64("budget", 0, "Maximum spend in USD")
+	packagesStr := fs.String("packages", "", "Comma-separated packages to pre-install (e.g., @anthropic-ai/claude-code,typescript)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -47,6 +48,9 @@ func cmdRun(args []string) error {
 	}
 	if *budgetFlag > 0 {
 		req.BudgetUSD = *budgetFlag
+	}
+	if *packagesStr != "" {
+		req.Packages = strings.Split(*packagesStr, ",")
 	}
 
 	fmt.Printf("Creating sandbox (template=%s, cpus=%d, mem=%dMB)...\n", req.Template, req.CPUs, req.MemoryMB)
