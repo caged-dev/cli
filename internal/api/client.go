@@ -124,6 +124,7 @@ type ExecRequest struct {
 type ExecResponse struct {
 	Output   string `json:"output"`
 	ExitCode int    `json:"exit_code"`
+	Error    string `json:"error,omitempty"`
 }
 
 // Exec sends a command to a sandbox and returns the output.
@@ -132,6 +133,9 @@ func (c *Client) Exec(ctx context.Context, sandboxID, command string) (string, e
 	err := c.do(ctx, http.MethodPost, "/v1/sandboxes/"+sandboxID+"/exec", &ExecRequest{Command: command}, &resp)
 	if err != nil {
 		return "", err
+	}
+	if resp.Error != "" {
+		return resp.Output, fmt.Errorf("%s", resp.Error)
 	}
 	return resp.Output, nil
 }
