@@ -20,6 +20,7 @@ type Config struct {
 	AllowedHosts []string          `yaml:"allowed_hosts" json:"allowed_hosts,omitempty"`
 	Secrets      []string          `yaml:"secrets" json:"secrets,omitempty"`
 	Packages     []string          `yaml:"packages" json:"packages,omitempty"` // Pre-install packages
+	Agents       []string          `yaml:"agents" json:"agents,omitempty"`     // AI agents to install
 }
 
 // Resources defines sandbox resource limits.

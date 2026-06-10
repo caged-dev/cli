@@ -24,6 +24,7 @@ func cmdUp(args []string) error {
 	envStr := fs.String("env", "", "Additional env vars (KEY=VAL,KEY2=VAL2)")
 	configFile := fs.String("config", "", "Path to config file (default: .caged.yaml)")
 	packagesStr := fs.String("packages", "", "Override packages to pre-install (comma-separated)")
+	agentsStr := fs.String("agents", "", "Override AI agents to install (comma-separated, e.g., claude-code,aider)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -80,6 +81,9 @@ func cmdUp(args []string) error {
 	if *packagesStr != "" {
 		override.Packages = strings.Split(*packagesStr, ",")
 	}
+	if *agentsStr != "" {
+		override.Agents = strings.Split(*agentsStr, ",")
+	}
 
 	cfg.Merge(override)
 
@@ -111,6 +115,9 @@ func cmdUp(args []string) error {
 	}
 	if len(cfg.Packages) > 0 {
 		req.Packages = cfg.Packages
+	}
+	if len(cfg.Agents) > 0 {
+		req.Agents = cfg.Agents
 	}
 
 	fmt.Printf("Creating sandbox (template=%s", cfg.Template)

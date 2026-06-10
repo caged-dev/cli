@@ -56,6 +56,7 @@ type CreateSandboxRequest struct {
 	Repo        string            `json:"repo,omitempty"`
 	BudgetUSD   float64           `json:"budget_usd,omitempty"`
 	Packages    []string          `json:"packages,omitempty"` // Pre-install packages
+	Agents      []string          `json:"agents,omitempty"`   // AI agents to install
 }
 
 // APIError represents a structured API error response.
