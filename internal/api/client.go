@@ -54,6 +54,10 @@ type CreateSandboxRequest struct {
 	Allowlist   []string          `json:"allowlist,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`
 	Repo        string            `json:"repo,omitempty"`
+	RepoToken   string            `json:"repo_token,omitempty"`   // PAT/OAuth token for private repos
+	RepoBranch  string            `json:"repo_branch,omitempty"` // Branch to checkout
+	RepoCommit  string            `json:"repo_commit,omitempty"` // Specific commit SHA
+	RepoSubdir  string            `json:"repo_subdir,omitempty"` // Monorepo subdirectory
 	BudgetUSD   float64           `json:"budget_usd,omitempty"`
 	Packages    []string          `json:"packages,omitempty"` // Pre-install packages
 	Agents      []string          `json:"agents,omitempty"`   // AI agents to install

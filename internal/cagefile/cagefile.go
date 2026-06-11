@@ -21,6 +21,17 @@ type Config struct {
 	Secrets      []string          `yaml:"secrets" json:"secrets,omitempty"`
 	Packages     []string          `yaml:"packages" json:"packages,omitempty"` // Pre-install packages
 	Agents       []string          `yaml:"agents" json:"agents,omitempty"`     // AI agents to install
+	Repo         RepoConfig        `yaml:"repo" json:"repo,omitempty"`         // Repository cloning config
+}
+
+// RepoConfig defines repository cloning settings.
+type RepoConfig struct {
+	URL          string `yaml:"url" json:"url,omitempty"`                     // Repository URL (HTTPS)
+	Token        string `yaml:"token" json:"token,omitempty"`                 // PAT/OAuth token for private repos
+	TokenEnv     string `yaml:"token_env" json:"token_env,omitempty"`         // Env var name containing token (e.g., GITHUB_TOKEN)
+	Branch       string `yaml:"branch" json:"branch,omitempty"`               // Branch to checkout
+	Commit       string `yaml:"commit" json:"commit,omitempty"`               // Specific commit SHA
+	Subdirectory string `yaml:"subdirectory" json:"subdirectory,omitempty"` // Monorepo subdirectory
 }
 
 // Resources defines sandbox resource limits.
@@ -112,5 +123,27 @@ func (c *Config) Merge(override Config) {
 	}
 	if len(override.Packages) > 0 {
 		c.Packages = override.Packages
+	}
+	if len(override.Agents) > 0 {
+		c.Agents = override.Agents
+	}
+	// Merge repo config (CLI flags override yaml).
+	if override.Repo.URL != "" {
+		c.Repo.URL = override.Repo.URL
+	}
+	if override.Repo.Token != "" {
+		c.Repo.Token = override.Repo.Token
+	}
+	if override.Repo.TokenEnv != "" {
+		c.Repo.TokenEnv = override.Repo.TokenEnv
+	}
+	if override.Repo.Branch != "" {
+		c.Repo.Branch = override.Repo.Branch
+	}
+	if override.Repo.Commit != "" {
+		c.Repo.Commit = override.Repo.Commit
+	}
+	if override.Repo.Subdirectory != "" {
+		c.Repo.Subdirectory = override.Repo.Subdirectory
 	}
 }

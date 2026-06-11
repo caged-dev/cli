@@ -19,12 +19,16 @@ func cmdUp(args []string) error {
 	disk := fs.Int("disk", 0, "Override disk in GB")
 	network := fs.String("network", "", "Override network mode")
 	allowlist := fs.String("allowlist", "", "Override allowlist (comma-separated)")
-	repo := fs.String("repo", "", "Override repo URL")
+	repo := fs.String("repo", "", "Repository URL to clone")
+	repoToken := fs.String("repo-token", "", "PAT/OAuth token for private repos")
+	repoBranch := fs.String("repo-branch", "", "Branch to checkout (default: main)")
+	repoCommit := fs.String("repo-commit", "", "Specific commit SHA to checkout")
+	repoSubdir := fs.String("repo-subdir", "", "Monorepo subdirectory to extract")
 	budgetFlag := fs.Float64("budget", 0, "Override budget in USD")
 	envStr := fs.String("env", "", "Additional env vars (KEY=VAL,KEY2=VAL2)")
 	configFile := fs.String("config", "", "Path to config file (default: .caged.yaml)")
 	packagesStr := fs.String("packages", "", "Override packages to pre-install (comma-separated)")
-	agentsStr := fs.String("agents", "", "Override AI agents to install (comma-separated, e.g., claude-code,aider)")
+	agentsStr := fs.String("agents", "", "Override AI agents to install (comma-separated, e.g., claude,aider)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -68,6 +72,13 @@ func cmdUp(args []string) error {
 			Memory: *memory,
 			Disk:   *disk,
 		},
+		Repo: cagefile.RepoConfig{
+			URL:          *repo,
+			Token:        *repoToken,
+			Branch:       *repoBranch,
+			Commit:       *repoCommit,
+			Subdirectory: *repoSubdir,
+		},
 	}
 	if *allowlist != "" {
 		override.AllowedHosts = strings.Split(*allowlist, ",")
@@ -110,8 +121,18 @@ func cmdUp(args []string) error {
 	if len(cfg.Env) > 0 {
 		req.Env = cfg.Env
 	}
-	if *repo != "" {
-		req.Repo = *repo
+	// Repo config: use config or CLI flags.
+	if cfg.Repo.URL != "" {
+		req.Repo = cfg.Repo.URL
+		req.RepoBranch = cfg.Repo.Branch
+		req.RepoCommit = cfg.Repo.Commit
+		req.RepoSubdir = cfg.Repo.Subdirectory
+		// Token can come from: direct value, or env var reference.
+		if cfg.Repo.Token != "" {
+			req.RepoToken = cfg.Repo.Token
+		} else if cfg.Repo.TokenEnv != "" {
+			req.RepoToken = os.Getenv(cfg.Repo.TokenEnv)
+		}
 	}
 	if len(cfg.Packages) > 0 {
 		req.Packages = cfg.Packages
@@ -129,6 +150,9 @@ func cmdUp(args []string) error {
 	}
 	if cfg.Budget > 0 {
 		fmt.Printf(", budget=$%.2f", cfg.Budget)
+	}
+	if cfg.Repo.URL != "" {
+		fmt.Printf(", repo=%s", cfg.Repo.URL)
 	}
 	fmt.Println(")...")
 
