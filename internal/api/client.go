@@ -54,7 +54,7 @@ type CreateSandboxRequest struct {
 	Allowlist   []string          `json:"allowlist,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`
 	Repo        string            `json:"repo,omitempty"`
-	RepoToken   string            `json:"repo_token,omitempty"`   // PAT/OAuth token for private repos
+	RepoToken   string            `json:"repo_token,omitempty"`  // PAT/OAuth token for private repos
 	RepoBranch  string            `json:"repo_branch,omitempty"` // Branch to checkout
 	RepoCommit  string            `json:"repo_commit,omitempty"` // Specific commit SHA
 	RepoSubdir  string            `json:"repo_subdir,omitempty"` // Monorepo subdirectory

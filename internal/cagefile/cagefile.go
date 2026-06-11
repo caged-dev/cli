@@ -26,11 +26,11 @@ type Config struct {
 
 // RepoConfig defines repository cloning settings.
 type RepoConfig struct {
-	URL          string `yaml:"url" json:"url,omitempty"`                     // Repository URL (HTTPS)
-	Token        string `yaml:"token" json:"token,omitempty"`                 // PAT/OAuth token for private repos
-	TokenEnv     string `yaml:"token_env" json:"token_env,omitempty"`         // Env var name containing token (e.g., GITHUB_TOKEN)
-	Branch       string `yaml:"branch" json:"branch,omitempty"`               // Branch to checkout
-	Commit       string `yaml:"commit" json:"commit,omitempty"`               // Specific commit SHA
+	URL          string `yaml:"url" json:"url,omitempty"`                   // Repository URL (HTTPS)
+	Token        string `yaml:"token" json:"token,omitempty"`               // PAT/OAuth token for private repos
+	TokenEnv     string `yaml:"token_env" json:"token_env,omitempty"`       // Env var name containing token (e.g., GITHUB_TOKEN)
+	Branch       string `yaml:"branch" json:"branch,omitempty"`             // Branch to checkout
+	Commit       string `yaml:"commit" json:"commit,omitempty"`             // Specific commit SHA
 	Subdirectory string `yaml:"subdirectory" json:"subdirectory,omitempty"` // Monorepo subdirectory
 }
 
