@@ -71,7 +71,7 @@ Commands:
 Examples:
   caged sandboxes list
   caged sandboxes list --format json
-  caged sandboxes create --template node-20
+  caged sandboxes create --template node
   caged sandboxes connect cage_abc123
   caged sandboxes destroy cage_abc123
 

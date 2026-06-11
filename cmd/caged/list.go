@@ -35,7 +35,7 @@ func cmdList(args []string) error {
 	case "table":
 		if len(sandboxes) == 0 {
 			fmt.Println("No sandboxes found.")
-			fmt.Println("Create one with: caged sandboxes create --template node-20")
+			fmt.Println("Create one with: caged sandboxes create --template node")
 			return nil
 		}
 

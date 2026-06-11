@@ -95,7 +95,7 @@ Examples:
   caged login
   caged up
   caged sandboxes list --format json
-  caged sandboxes create --template node-20 --cpus 2
+  caged sandboxes create --template node --cpus 2
   caged sandboxes connect cage_abc123
   caged sandboxes destroy cage_abc123
 

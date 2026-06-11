@@ -98,7 +98,7 @@ install() {
         echo ""
         info "Get started:"
         echo "  caged login"
-        echo "  caged run --template node-20"
+        echo "  caged sandboxes create --template node"
         echo ""
         info "Docs: https://docs.caged.dev"
     else

@@ -20,7 +20,7 @@ brew install caged
 caged login
 
 # Create a sandbox
-caged run --template node-20 --cpus 2 --memory 1024
+caged sandboxes create --template node --cpus 2 --memory 1024
 
 # List your sandboxes
 caged list
@@ -46,7 +46,7 @@ caged destroy cage_abc123
 Create a `.caged.yaml` in your repo root:
 
 ```yaml
-template: node-20
+template: node    # Alias for node-22 (also: python → python-312)
 resources:
   cpu: 2
   memory: 1024

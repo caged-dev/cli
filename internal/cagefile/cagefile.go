@@ -55,7 +55,7 @@ func (c *Config) Validate() error {
 	var errs []string
 
 	if c.Template == "" {
-		errs = append(errs, "template is required (e.g., 'node-20', 'python-3.12')")
+		errs = append(errs, "template is required (e.g., 'node', 'python', or full: 'node-22', 'python-312')")
 	}
 	if c.Resources.CPU < 0 || c.Resources.CPU > 16 {
 		errs = append(errs, fmt.Sprintf("resources.cpu must be 1-16, got %d", c.Resources.CPU))

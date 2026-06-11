@@ -9,7 +9,7 @@ import (
 
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
-	template := fs.String("template", "node-20", "Sandbox template (e.g., node-20, python-3.12)")
+	template := fs.String("template", "node", "Sandbox template (node, python, or full: node-22, python-312, minimal)")
 	cpus := fs.Int("cpus", 2, "Number of vCPUs")
 	memory := fs.Int("memory", 512, "Memory in MB")
 	disk := fs.Int("disk", 5, "Disk in GB")
