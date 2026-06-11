@@ -18,14 +18,20 @@ type Client struct {
 	httpClient *http.Client
 }
 
+// defaultRequestTimeout bounds most API requests.
+const defaultRequestTimeout = 30 * time.Second
+
+// createRequestTimeout bounds sandbox creation, which can include a repo
+// clone, package installs, and agent installs (server allows up to 5 min).
+const createRequestTimeout = 6 * time.Minute
+
 // NewClient creates a new API client.
 func NewClient(baseURL, apiKey string) *Client {
 	return &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		// No client-wide timeout: per-request timeouts are applied in do().
+		httpClient: &http.Client{},
 	}
 }
 
@@ -79,6 +85,8 @@ func (e *APIError) Error() string {
 
 // CreateSandbox creates a new sandbox.
 func (c *Client) CreateSandbox(ctx context.Context, req *CreateSandboxRequest) (*Sandbox, error) {
+	ctx, cancel := context.WithTimeout(ctx, createRequestTimeout)
+	defer cancel()
 	var s Sandbox
 	if err := c.do(ctx, http.MethodPost, "/v1/sandboxes", req, &s); err != nil {
 		return nil, err
@@ -165,6 +173,13 @@ func (c *Client) GetLogs(ctx context.Context, sandboxID string, follow bool) ([]
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body any, result any) error {
+	// Apply the default timeout unless the caller already set a deadline.
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultRequestTimeout)
+		defer cancel()
+	}
+
 	var reqBody io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
