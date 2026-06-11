@@ -139,17 +139,19 @@ type ExecResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// Exec sends a command to a sandbox and returns the output.
-func (c *Client) Exec(ctx context.Context, sandboxID, command string) (string, error) {
+// Exec sends a command to a sandbox and returns its output and exit code.
+// A non-zero exit code is not an error; err is only set for transport or
+// infrastructure failures.
+func (c *Client) Exec(ctx context.Context, sandboxID, command string) (string, int, error) {
 	var resp ExecResponse
 	err := c.do(ctx, http.MethodPost, "/v1/sandboxes/"+sandboxID+"/exec", &ExecRequest{Command: command}, &resp)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if resp.Error != "" {
-		return resp.Output, fmt.Errorf("%s", resp.Error)
+		return resp.Output, resp.ExitCode, fmt.Errorf("%s", resp.Error)
 	}
-	return resp.Output, nil
+	return resp.Output, resp.ExitCode, nil
 }
 
 // LogEntry represents a single event log entry.

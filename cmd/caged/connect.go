@@ -56,13 +56,17 @@ func cmdConnect(args []string) error {
 			return nil
 		}
 
-		output, execErr := client.Exec(ctx, sandboxID, cmd)
-		if execErr != nil {
-			fmt.Fprintf(os.Stderr, "exec error: %v\n", execErr)
-			continue
-		}
+		output, exitCode, execErr := client.Exec(ctx, sandboxID, cmd)
 		if output != "" {
-			fmt.Println(output)
+			fmt.Print(output)
+			if !strings.HasSuffix(output, "\n") {
+				fmt.Println()
+			}
+		}
+		if execErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", execErr)
+		} else if exitCode != 0 {
+			fmt.Fprintf(os.Stderr, "\033[2m(exit %d)\033[0m\n", exitCode)
 		}
 	}
 }
