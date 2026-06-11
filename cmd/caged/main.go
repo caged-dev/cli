@@ -31,6 +31,10 @@ func run() error {
 		return cmdLogin(os.Args[2:])
 	case "up":
 		return cmdUp(os.Args[2:])
+	case "sandboxes":
+		return cmdSandboxes(os.Args[2:])
+
+	// Shortcuts (backward compatibility) — these map to sandboxes subcommands
 	case "run":
 		return cmdRun(os.Args[2:])
 	case "list", "ls":
@@ -47,6 +51,7 @@ func run() error {
 		return cmdWake(os.Args[2:])
 	case "logs":
 		return cmdLogs(os.Args[2:])
+
 	case "version", "--version", "-v":
 		fmt.Printf("caged %s (%s)\n", version, commit)
 		return nil
@@ -67,23 +72,32 @@ Usage: caged <command> [options]
 Commands:
   login               Configure API credentials
   up                  Create sandbox from .caged.yaml
-  run                 Create and start a sandbox
-  list (ls)           List sandboxes
-  connect <id>        Interactive terminal session
-  exec <id> <cmd>     Execute a command in a sandbox
-  destroy (rm) <id>   Destroy a sandbox
-  sleep <id>          Pause sandbox (saves costs)
-  wake <id>           Resume a sleeping sandbox
-  logs <id>           Stream sandbox events
+  sandboxes           Manage sandboxes (list, create, destroy, etc.)
   version             Show version
+
+Sandbox Management:
+  caged sandboxes list        List all sandboxes
+  caged sandboxes create      Create a new sandbox
+  caged sandboxes destroy     Destroy a sandbox
+  caged sandboxes sleep       Pause a sandbox
+  caged sandboxes wake        Resume a sandbox
+  caged sandboxes connect     Interactive terminal
+  caged sandboxes exec        Run a command
+  caged sandboxes logs        View logs
+
+Shortcuts (backward compatibility):
+  caged list          → caged sandboxes list
+  caged run           → caged sandboxes create
+  caged connect <id>  → caged sandboxes connect <id>
+  caged destroy <id>  → caged sandboxes destroy <id>
 
 Examples:
   caged login
-  caged run --template node-20 --cpus 2 --memory 1024
   caged up
-  caged connect cage_abc123
-  caged exec cage_abc123 "npm test"
-  caged destroy cage_abc123
+  caged sandboxes list --format json
+  caged sandboxes create --template node-20 --cpus 2
+  caged sandboxes connect cage_abc123
+  caged sandboxes destroy cage_abc123
 
 `, version)
 }
