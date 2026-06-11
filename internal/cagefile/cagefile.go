@@ -3,6 +3,7 @@ package cagefile
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -68,6 +69,14 @@ func Parse(data []byte) (*Config, error) {
 	}
 	if cfg.Network != "" && cfg.NetworkMode == "" {
 		cfg.NetworkMode = cfg.Network
+	}
+
+	// Expand ${VAR} references in env values from the local environment,
+	// so secrets never need to live in the committed yaml.
+	for k, v := range cfg.Env {
+		cfg.Env[k] = os.Expand(v, func(name string) string {
+			return os.Getenv(name)
+		})
 	}
 
 	return &cfg, nil
