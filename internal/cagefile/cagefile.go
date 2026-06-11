@@ -22,6 +22,13 @@ type Config struct {
 	Packages     []string          `yaml:"packages" json:"packages,omitempty"` // Pre-install packages
 	Agents       []string          `yaml:"agents" json:"agents,omitempty"`     // AI agents to install
 	Repo         RepoConfig        `yaml:"repo" json:"repo,omitempty"`         // Repository cloning config
+
+	// Root-level aliases for resources (backward compatibility).
+	// These are merged into Resources if Resources fields are zero.
+	CPUs    int    `yaml:"cpus" json:"-"`    // Alias for resources.cpu
+	Memory  int    `yaml:"memory" json:"-"`  // Alias for resources.memory (MB)
+	Disk    int    `yaml:"disk" json:"-"`    // Alias for resources.disk (GB)
+	Network string `yaml:"network" json:"-"` // Alias for network_mode
 }
 
 // RepoConfig defines repository cloning settings.
@@ -47,6 +54,22 @@ func Parse(data []byte) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing yaml: %w", err)
 	}
+
+	// Merge root-level resource aliases into Resources struct.
+	// Root-level fields take precedence if Resources fields are zero.
+	if cfg.CPUs > 0 && cfg.Resources.CPU == 0 {
+		cfg.Resources.CPU = cfg.CPUs
+	}
+	if cfg.Memory > 0 && cfg.Resources.Memory == 0 {
+		cfg.Resources.Memory = cfg.Memory
+	}
+	if cfg.Disk > 0 && cfg.Resources.Disk == 0 {
+		cfg.Resources.Disk = cfg.Disk
+	}
+	if cfg.Network != "" && cfg.NetworkMode == "" {
+		cfg.NetworkMode = cfg.Network
+	}
+
 	return &cfg, nil
 }
 

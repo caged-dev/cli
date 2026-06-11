@@ -16,7 +16,7 @@ func printSandboxInfo(s *api.Sandbox) {
 	if s.IP != "" {
 		fmt.Printf("  IP:       %s\n", s.IP)
 	}
-	if s.BudgetUSD > 0 {
-		fmt.Printf("  Budget:   $%.2f\n", s.BudgetUSD)
+	if s.Budget > 0 {
+		fmt.Printf("  Budget:   $%.2f\n", s.Budget)
 	}
 }

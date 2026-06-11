@@ -48,7 +48,7 @@ func cmdRun(args []string) error {
 		req.Repo = *repo
 	}
 	if *budgetFlag > 0 {
-		req.BudgetUSD = *budgetFlag
+		req.Budget = *budgetFlag
 	}
 	if *packagesStr != "" {
 		req.Packages = strings.Split(*packagesStr, ",")

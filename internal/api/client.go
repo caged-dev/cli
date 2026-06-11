@@ -40,8 +40,8 @@ type Sandbox struct {
 	DiskGB      int     `json:"disk_gb"`
 	NetworkMode string  `json:"network_mode"`
 	CreatedAt   string  `json:"created_at"`
-	BudgetUSD   float64 `json:"budget_usd,omitempty"`
-	SpentUSD    float64 `json:"spent_usd,omitempty"`
+	Budget      float64 `json:"budget,omitempty"`
+	Spent       float64 `json:"spent,omitempty"`
 }
 
 // CreateSandboxRequest is the request body for creating a sandbox.
@@ -58,9 +58,9 @@ type CreateSandboxRequest struct {
 	RepoBranch  string            `json:"repo_branch,omitempty"` // Branch to checkout
 	RepoCommit  string            `json:"repo_commit,omitempty"` // Specific commit SHA
 	RepoSubdir  string            `json:"repo_subdir,omitempty"` // Monorepo subdirectory
-	BudgetUSD   float64           `json:"budget_usd,omitempty"`
-	Packages    []string          `json:"packages,omitempty"` // Pre-install packages
-	Agents      []string          `json:"agents,omitempty"`   // AI agents to install
+	Budget      float64           `json:"budget,omitempty"`      // Budget in USD
+	Packages    []string          `json:"packages,omitempty"`    // Pre-install packages
+	Agents      []string          `json:"agents,omitempty"`      // AI agents to install
 }
 
 // APIError represents a structured API error response.

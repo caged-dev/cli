@@ -113,7 +113,7 @@ func cmdUp(args []string) error {
 		MemoryMB:    cfg.Resources.Memory,
 		DiskGB:      cfg.Resources.Disk,
 		NetworkMode: cfg.NetworkMode,
-		BudgetUSD:   cfg.Budget,
+		Budget:      cfg.Budget,
 	}
 	if len(cfg.AllowedHosts) > 0 {
 		req.Allowlist = cfg.AllowedHosts
