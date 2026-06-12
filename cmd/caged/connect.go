@@ -46,7 +46,7 @@ func cmdConnect(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer tc.Close()
+	defer func() { _ = tc.Close() }()
 
 	fmt.Printf("Connected to sandbox %s (%s). Type 'exit' or press Ctrl+D to disconnect.\r\n", sandboxID, sandbox.Template)
 

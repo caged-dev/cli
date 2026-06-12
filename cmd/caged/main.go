@@ -59,7 +59,7 @@ func run() error {
 		printUsage()
 		return nil
 	default:
-		return fmt.Errorf("unknown command: %s\nRun 'caged help' for usage.", os.Args[1])
+		return fmt.Errorf("unknown command: %s (run 'caged help' for usage)", os.Args[1])
 	}
 }
 

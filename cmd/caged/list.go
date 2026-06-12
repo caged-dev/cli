@@ -40,13 +40,12 @@ func cmdList(args []string) error {
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "ID\tSTATUS\tTEMPLATE\tCPUs\tMEMORY\tCREATED\n")
+		fmt.Fprintf(w, "ID\tSTATUS\tTEMPLATE\tCPUs\tMEMORY\tCREATED\n") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 		for _, s := range sandboxes {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%dMB\t%s\n",
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%dMB\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
 				s.ID, s.Status, s.Template, s.CPUs, s.MemoryMB, s.CreatedAt)
 		}
-		w.Flush()
-		return nil
+		return w.Flush()
 
 	default:
 		return fmt.Errorf("unknown format: %s (use 'table' or 'json')", *format)

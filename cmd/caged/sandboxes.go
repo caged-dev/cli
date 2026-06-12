@@ -49,7 +49,7 @@ func cmdSandboxes(args []string) error {
 		printSandboxesUsage()
 		return nil
 	default:
-		return fmt.Errorf("unknown sandboxes command: %s\nRun 'caged sandboxes help' for usage.", args[0])
+		return fmt.Errorf("unknown sandboxes command: %s (run 'caged sandboxes help' for usage)", args[0])
 	}
 }
 

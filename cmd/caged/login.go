@@ -58,7 +58,7 @@ func cmdLogin(args []string) error {
 	if err != nil {
 		return fmt.Errorf("connecting to %s: %w\n\nUse 'caged login --manual' to enter an API key directly", cfg.APIURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %d — use 'caged login --manual' to enter an API key directly", resp.StatusCode)
@@ -134,7 +134,7 @@ func pollDeviceToken(apiURL, deviceCode string) (*deviceTokenResponse, string, e
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusOK {
 		var tokenResp deviceTokenResponse
