@@ -107,10 +107,7 @@ func TestRunMCPBridge_ForwardsRemoteToStdout(t *testing.T) {
 
 	// Wait for the response to be written to stdout.
 	deadline := time.After(2 * time.Second)
-	for {
-		if strings.Contains(out.String(), `"id":1`) {
-			break
-		}
+	for !strings.Contains(out.String(), `"id":1`) {
 		select {
 		case <-deadline:
 			t.Fatal("timed out waiting for remote message on stdout")
