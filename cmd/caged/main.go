@@ -51,6 +51,8 @@ func run() error {
 		return cmdWake(os.Args[2:])
 	case "logs":
 		return cmdLogs(os.Args[2:])
+	case "mcp":
+		return cmdMCP(os.Args[2:])
 
 	case "version", "--version", "-v":
 		fmt.Printf("caged %s (%s)\n", version, commit)
@@ -73,6 +75,7 @@ Commands:
   login               Configure API credentials
   up                  Create sandbox from .caged.yaml
   sandboxes           Manage sandboxes (list, create, destroy, etc.)
+  mcp <sandbox-id>    Run an MCP server over stdio, bridged to a sandbox
   version             Show version
 
 Sandbox Management:
@@ -98,6 +101,7 @@ Examples:
   caged sandboxes create --template node --cpus 2
   caged sandboxes connect cage_abc123
   caged sandboxes destroy cage_abc123
+  caged mcp cage_abc123     # for Claude Desktop / Cursor MCP config
 
 `, version)
 }

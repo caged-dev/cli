@@ -80,7 +80,27 @@ caged up
 | `caged sleep <id>` | Pause sandbox (saves costs) |
 | `caged wake <id>` | Resume a sleeping sandbox |
 | `caged logs <id>` | Stream sandbox events |
+| `caged mcp <id>` | Run an MCP server over stdio, bridged to a sandbox |
 | `caged version` | Show version |
+
+## MCP (Claude Desktop / Cursor)
+
+`caged mcp` speaks the Model Context Protocol over stdin/stdout and proxies
+tool calls (filesystem, terminal, git) into a running sandbox — no WebSocket
+setup required. Add it to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "caged": {
+      "command": "caged",
+      "args": ["mcp", "cage_abc123"]
+    }
+  }
+}
+```
+
+The sandbox must be running (`caged wake <id>` if it's sleeping).
 
 ## Configuration
 
