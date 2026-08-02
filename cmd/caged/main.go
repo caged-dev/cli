@@ -55,6 +55,8 @@ func run() error {
 		return cmdMCP(os.Args[2:])
 	case "pipeline", "pipelines":
 		return cmdPipeline(os.Args[2:])
+	case "a2a":
+		return cmdA2A(os.Args[2:])
 
 	case "version", "--version", "-v":
 		fmt.Printf("caged %s (%s)\n", version, commit)
@@ -78,6 +80,7 @@ Commands:
   up                  Create sandbox from .caged.yaml
   sandboxes           Manage sandboxes (list, create, destroy, etc.)
   pipeline            Manage pipelines (create, run, list, etc.)
+  a2a                 Agent-to-Agent protocol (delegate, discover, manage)
   mcp <sandbox-id>    Run an MCP server over stdio, bridged to a sandbox
   version             Show version
 
@@ -99,6 +102,13 @@ Pipeline Management:
   caged pipeline runs <id>    List runs for a pipeline
   caged pipeline cancel       Cancel a running pipeline
 
+A2A (Agent-to-Agent) Protocol:
+  caged a2a agents list       List registered A2A agents
+  caged a2a agents create     Register a new A2A agent
+  caged a2a discover <url>    Discover a remote A2A agent
+  caged a2a delegate <url>    Delegate a task to an A2A agent
+  caged a2a task get <id>     Get task status
+
 Shortcuts (backward compatibility):
   caged list          → caged sandboxes list
   caged run           → caged sandboxes create
@@ -115,6 +125,8 @@ Examples:
   caged mcp cage_abc123     # for Claude Desktop / Cursor MCP config
   caged pipeline create -f pipeline.json
   caged pipeline run <pipeline-id> --repo https://github.com/org/repo
+  caged a2a discover https://agent.example.com
+  caged a2a delegate https://agent.example.com -skill analyze
 
 `, version)
 }
