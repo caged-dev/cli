@@ -33,6 +33,8 @@ func cmdPipeline(args []string) error {
 		return cmdPipelineRuns(args[1:])
 	case "cancel":
 		return cmdPipelineCancel(args[1:])
+	case "state":
+		return cmdPipelineState(args[1:])
 	case "help", "--help", "-h":
 		printPipelineUsage()
 		return nil
@@ -54,6 +56,7 @@ Commands:
   run       Start a pipeline run
   runs      List runs for a pipeline
   cancel    Cancel a running pipeline
+  state     Manage pipeline run state (key/value store)
 
 Examples:
   caged pipeline create -f pipeline.json
@@ -61,6 +64,9 @@ Examples:
   caged pipeline run <pipeline-id> --repo https://github.com/org/repo
   caged pipeline runs <pipeline-id>
   caged pipeline cancel <pipeline-id> <run-id>
+  caged pipeline state list <pipeline-id> <run-id>
+  caged pipeline state get <pipeline-id> <run-id> <key>
+  caged pipeline state set <pipeline-id> <run-id> <key> <value>
 `)
 }
 
@@ -359,5 +365,248 @@ func cmdPipelineCancel(args []string) error {
 	}
 
 	fmt.Println("Run canceled")
+	return nil
+}
+
+// ---------- Pipeline State Commands ----------
+
+func cmdPipelineState(args []string) error {
+	if len(args) == 0 {
+		printPipelineStateUsage()
+		return nil
+	}
+
+	switch args[0] {
+	case "list", "ls":
+		return cmdPipelineStateList(args[1:])
+	case "get":
+		return cmdPipelineStateGet(args[1:])
+	case "set":
+		return cmdPipelineStateSet(args[1:])
+	case "delete", "rm":
+		return cmdPipelineStateDelete(args[1:])
+	case "help", "--help", "-h":
+		printPipelineStateUsage()
+		return nil
+	default:
+		return fmt.Errorf("unknown state command: %s", args[0])
+	}
+}
+
+func printPipelineStateUsage() {
+	fmt.Print(`caged pipeline state — manage pipeline run state
+
+Usage: caged pipeline state <command> [options]
+
+Commands:
+  list      List all state entries for a run
+  get       Get a state entry by key
+  set       Set a state entry
+  delete    Delete a state entry
+
+Examples:
+  caged pipeline state list <pipeline-id> <run-id>
+  caged pipeline state get <pipeline-id> <run-id> <key>
+  caged pipeline state set <pipeline-id> <run-id> <key> '{"result": "success"}'
+  caged pipeline state set <pipeline-id> <run-id> <key> -f output.json
+  caged pipeline state delete <pipeline-id> <run-id> <key>
+`)
+}
+
+func cmdPipelineStateList(args []string) error {
+	fs := flag.NewFlagSet("pipeline state list", flag.ExitOnError)
+	outputJSON := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: caged pipeline state list <pipeline-id> <run-id>")
+	}
+	pipelineID := fs.Arg(0)
+	runID := fs.Arg(1)
+
+	client, err := mustClient()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	entries, err := client.ListState(ctx, pipelineID, runID)
+	if err != nil {
+		return fmt.Errorf("listing state: %w", err)
+	}
+
+	if *outputJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(entries)
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("No state entries found")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "KEY\tTYPE\tSIZE\tCREATED BY\tEXPIRES")
+	for _, e := range entries {
+		expires := "-"
+		if e.ExpiresAt != "" {
+			expires = e.ExpiresAt
+		}
+		entryType := e.Type
+		if entryType == "" {
+			entryType = "string"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n", e.Key, entryType, e.SizeBytes, e.CreatedBy, expires)
+	}
+	w.Flush()
+	return nil
+}
+
+func cmdPipelineStateGet(args []string) error {
+	fs := flag.NewFlagSet("pipeline state get", flag.ExitOnError)
+	outputJSON := fs.Bool("json", false, "Output as JSON (full entry)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: caged pipeline state get <pipeline-id> <run-id> <key>")
+	}
+	pipelineID := fs.Arg(0)
+	runID := fs.Arg(1)
+	key := fs.Arg(2)
+
+	client, err := mustClient()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	entry, err := client.GetState(ctx, pipelineID, runID, key)
+	if err != nil {
+		return fmt.Errorf("getting state: %w", err)
+	}
+
+	if *outputJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(entry)
+	}
+
+	// Just output the value.
+	switch v := entry.Value.(type) {
+	case string:
+		fmt.Println(v)
+	default:
+		data, _ := json.MarshalIndent(v, "", "  ")
+		fmt.Println(string(data))
+	}
+	return nil
+}
+
+func cmdPipelineStateSet(args []string) error {
+	fs := flag.NewFlagSet("pipeline state set", flag.ExitOnError)
+	file := fs.String("f", "", "Read value from JSON file")
+	stateType := fs.String("type", "", "State type (string, json, file, patch, artifact)")
+	mimeType := fs.String("mime-type", "", "MIME type for typed artifacts")
+	ttl := fs.Int("ttl", 0, "TTL in seconds (0 = no expiry)")
+	createdBy := fs.String("created-by", "cli", "Creator identifier")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: caged pipeline state set <pipeline-id> <run-id> <key> <value> OR -f <file>")
+	}
+	pipelineID := fs.Arg(0)
+	runID := fs.Arg(1)
+	key := fs.Arg(2)
+
+	var value any
+	if *file != "" {
+		data, err := os.ReadFile(*file)
+		if err != nil {
+			return fmt.Errorf("reading file: %w", err)
+		}
+		// Try to parse as JSON first.
+		if err := json.Unmarshal(data, &value); err != nil {
+			// If not valid JSON, store as string.
+			value = string(data)
+		}
+		if *stateType == "" {
+			*stateType = "json"
+		}
+	} else if fs.NArg() >= 4 {
+		valueStr := fs.Arg(3)
+		// Try to parse as JSON.
+		if err := json.Unmarshal([]byte(valueStr), &value); err != nil {
+			// Not JSON, store as string.
+			value = valueStr
+		}
+	} else {
+		return fmt.Errorf("value or -f <file> required")
+	}
+
+	client, err := mustClient()
+	if err != nil {
+		return err
+	}
+
+	req := &api.SetStateRequest{
+		Value:      value,
+		Type:       *stateType,
+		MimeType:   *mimeType,
+		CreatedBy:  *createdBy,
+		TTLSeconds: *ttl,
+	}
+
+	ctx := context.Background()
+	entry, err := client.SetState(ctx, pipelineID, runID, key, req)
+	if err != nil {
+		return fmt.Errorf("setting state: %w", err)
+	}
+
+	fmt.Printf("Set state: %s (size: %d bytes)\n", entry.Key, entry.SizeBytes)
+	return nil
+}
+
+func cmdPipelineStateDelete(args []string) error {
+	fs := flag.NewFlagSet("pipeline state delete", flag.ExitOnError)
+	force := fs.Bool("force", false, "Skip confirmation")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 3 {
+		return fmt.Errorf("usage: caged pipeline state delete <pipeline-id> <run-id> <key>")
+	}
+	pipelineID := fs.Arg(0)
+	runID := fs.Arg(1)
+	key := fs.Arg(2)
+
+	if !*force {
+		fmt.Printf("Delete state key %q? [y/N] ", key)
+		var confirm string
+		fmt.Scanln(&confirm)
+		if strings.ToLower(confirm) != "y" {
+			fmt.Println("Aborted")
+			return nil
+		}
+	}
+
+	client, err := mustClient()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	if err := client.DeleteState(ctx, pipelineID, runID, key); err != nil {
+		return fmt.Errorf("deleting state: %w", err)
+	}
+
+	fmt.Println("State entry deleted")
 	return nil
 }
