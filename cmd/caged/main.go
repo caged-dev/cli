@@ -53,6 +53,8 @@ func run() error {
 		return cmdLogs(os.Args[2:])
 	case "mcp":
 		return cmdMCP(os.Args[2:])
+	case "pipeline", "pipelines":
+		return cmdPipeline(os.Args[2:])
 
 	case "version", "--version", "-v":
 		fmt.Printf("caged %s (%s)\n", version, commit)
@@ -75,6 +77,7 @@ Commands:
   login               Configure API credentials
   up                  Create sandbox from .caged.yaml
   sandboxes           Manage sandboxes (list, create, destroy, etc.)
+  pipeline            Manage pipelines (create, run, list, etc.)
   mcp <sandbox-id>    Run an MCP server over stdio, bridged to a sandbox
   version             Show version
 
@@ -87,6 +90,14 @@ Sandbox Management:
   caged sandboxes connect     Interactive terminal
   caged sandboxes exec        Run a command
   caged sandboxes logs        View logs
+
+Pipeline Management:
+  caged pipeline create       Create pipeline from JSON
+  caged pipeline list         List all pipelines
+  caged pipeline get <id>     Get pipeline details
+  caged pipeline run <id>     Start a pipeline run
+  caged pipeline runs <id>    List runs for a pipeline
+  caged pipeline cancel       Cancel a running pipeline
 
 Shortcuts (backward compatibility):
   caged list          → caged sandboxes list
@@ -102,6 +113,8 @@ Examples:
   caged sandboxes connect cage_abc123
   caged sandboxes destroy cage_abc123
   caged mcp cage_abc123     # for Claude Desktop / Cursor MCP config
+  caged pipeline create -f pipeline.json
+  caged pipeline run <pipeline-id> --repo https://github.com/org/repo
 
 `, version)
 }

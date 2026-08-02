@@ -226,3 +226,151 @@ func (c *Client) do(ctx context.Context, method, path string, body any, result a
 
 // Version is set at build time.
 var Version = "dev"
+
+// ---------- Pipeline API Types ----------
+
+// Pipeline represents a pipeline definition.
+type Pipeline struct {
+	ID          string            `json:"id"`
+	AccountID   string            `json:"account_id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Stages      []StageDefinition `json:"stages"`
+	Defaults    StageDefaults     `json:"defaults,omitempty"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+}
+
+// StageDefinition describes a pipeline stage.
+type StageDefinition struct {
+	Name        string          `json:"name"`
+	Type        string          `json:"type"` // command, approval, gate, eval
+	Command     string          `json:"command,omitempty"`
+	Template    string          `json:"template,omitempty"`
+	Timeout     string          `json:"timeout,omitempty"`
+	DependsOn   []string        `json:"depends_on,omitempty"`
+	RequireAck  bool            `json:"require_ack,omitempty"`
+	Condition   *StageCondition `json:"condition,omitempty"`
+	MaxAttempts int             `json:"max_attempts,omitempty"`
+}
+
+// StageCondition configures conditional stage execution.
+type StageCondition struct {
+	OnSuccess bool   `json:"on_success,omitempty"`
+	OnFailure bool   `json:"on_failure,omitempty"`
+	If        string `json:"if,omitempty"` // Expression
+}
+
+// StageDefaults holds default values for stages.
+type StageDefaults struct {
+	Template    string `json:"template,omitempty"`
+	Timeout     string `json:"timeout,omitempty"`
+	MaxAttempts int    `json:"max_attempts,omitempty"`
+}
+
+// Run represents a pipeline run.
+type Run struct {
+	ID         string     `json:"id"`
+	PipelineID string     `json:"pipeline_id"`
+	Status     string     `json:"status"` // pending, running, paused, succeeded, failed, canceled
+	Trigger    string     `json:"trigger"`
+	Input      RunInput   `json:"input,omitempty"`
+	Output     *RunOutput `json:"output,omitempty"`
+	StartedAt  string     `json:"started_at,omitempty"`
+	EndedAt    string     `json:"ended_at,omitempty"`
+	CreatedAt  string     `json:"created_at"`
+}
+
+// RunInput is input to a pipeline run.
+type RunInput struct {
+	Env    map[string]string `json:"env,omitempty"`
+	Repo   string            `json:"repo,omitempty"`
+	Branch string            `json:"branch,omitempty"`
+}
+
+// RunOutput holds outputs from a completed run.
+type RunOutput struct {
+	State map[string]any `json:"state,omitempty"`
+}
+
+// CreatePipelineRequest is the request body for creating a pipeline.
+type CreatePipelineRequest struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Stages      []StageDefinition `json:"stages"`
+	Defaults    StageDefaults     `json:"defaults,omitempty"`
+}
+
+// StartRunRequest is the request body for starting a pipeline run.
+type StartRunRequest struct {
+	Trigger string            `json:"trigger,omitempty"`
+	Env     map[string]string `json:"env,omitempty"`
+	Repo    string            `json:"repo,omitempty"`
+	Branch  string            `json:"branch,omitempty"`
+}
+
+// ---------- Pipeline API Methods ----------
+
+// CreatePipeline creates a new pipeline.
+func (c *Client) CreatePipeline(ctx context.Context, req *CreatePipelineRequest) (*Pipeline, error) {
+	var p Pipeline
+	if err := c.do(ctx, http.MethodPost, "/v1/pipelines", req, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// ListPipelines lists all pipelines.
+func (c *Client) ListPipelines(ctx context.Context) ([]Pipeline, error) {
+	var pipelines []Pipeline
+	if err := c.do(ctx, http.MethodGet, "/v1/pipelines", nil, &pipelines); err != nil {
+		return nil, err
+	}
+	return pipelines, nil
+}
+
+// GetPipeline gets a pipeline by ID.
+func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) {
+	var p Pipeline
+	if err := c.do(ctx, http.MethodGet, "/v1/pipelines/"+id, nil, &p); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// DeletePipeline deletes a pipeline by ID.
+func (c *Client) DeletePipeline(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/v1/pipelines/"+id, nil, nil)
+}
+
+// StartRun starts a new pipeline run.
+func (c *Client) StartRun(ctx context.Context, pipelineID string, req *StartRunRequest) (*Run, error) {
+	var r Run
+	if err := c.do(ctx, http.MethodPost, "/v1/pipelines/"+pipelineID+"/runs", req, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// ListRuns lists runs for a pipeline.
+func (c *Client) ListRuns(ctx context.Context, pipelineID string) ([]Run, error) {
+	var runs []Run
+	if err := c.do(ctx, http.MethodGet, "/v1/pipelines/"+pipelineID+"/runs", nil, &runs); err != nil {
+		return nil, err
+	}
+	return runs, nil
+}
+
+// GetRun gets a run by ID.
+func (c *Client) GetRun(ctx context.Context, pipelineID, runID string) (*Run, error) {
+	var r Run
+	if err := c.do(ctx, http.MethodGet, "/v1/pipelines/"+pipelineID+"/runs/"+runID, nil, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// CancelRun cancels a pipeline run.
+func (c *Client) CancelRun(ctx context.Context, pipelineID, runID string) error {
+	return c.do(ctx, http.MethodPost, "/v1/pipelines/"+pipelineID+"/runs/"+runID+"/cancel", nil, nil)
+}
