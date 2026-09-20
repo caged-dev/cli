@@ -30,13 +30,25 @@ type A2AAgentRegistration struct {
 	UpdatedAt      string     `json:"updated_at"`
 }
 
-// A2ASkill describes a skill/capability an agent provides.
+// A2ASkill describes a skill/capability an agent provides. It mirrors the
+// server's a2a.Skill field for field: `caged a2a agent create -f file.json`
+// decodes the user's file into this type and re-encodes it, so a field
+// missing here is a field stripped from their registration.
 type A2ASkill struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	InputSchema json.RawMessage `json:"input_schema,omitempty"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	Description  string            `json:"description,omitempty"`
+	Tags         []string          `json:"tags,omitempty"`
+	InputSchema  json.RawMessage   `json:"input_schema,omitempty"`
+	OutputSchema json.RawMessage   `json:"output_schema,omitempty"`
+	Examples     []A2ASkillExample `json:"examples,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+}
+
+// A2ASkillExample is an example invocation of a skill.
+type A2ASkillExample struct {
+	Input  json.RawMessage `json:"input"`
+	Output json.RawMessage `json:"output,omitempty"`
 }
 
 // A2AAgentCard is the discovery document for an A2A agent.

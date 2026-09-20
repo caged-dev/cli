@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/caged-dev/cli/internal/api"
 )
@@ -166,6 +167,8 @@ func cmdPipelineGet(args []string) error {
 	if pipeline.Description != "" {
 		fmt.Printf("Description: %s\n", pipeline.Description)
 	}
+	fmt.Printf("Status: %s\n", pipeline.Status)
+	fmt.Printf("Version: %d\n", pipeline.Version)
 	fmt.Printf("Created: %s\n", pipeline.CreatedAt)
 	fmt.Printf("\nStages (%d):\n", len(pipeline.Stages))
 	for i, s := range pipeline.Stages {
@@ -295,9 +298,9 @@ func cmdPipelineRuns(args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUN ID\tSTATUS\tTRIGGER\tSTARTED\tENDED")
+	fmt.Fprintln(w, "RUN ID\tSTATUS\tTRIGGER\tSTARTED\tCOMPLETED")
 	for _, r := range runs {
-		ended := r.EndedAt
+		ended := r.CompletedAt
 		if ended == "" {
 			ended = "-"
 		}
@@ -336,8 +339,14 @@ func cmdPipelineGetRun(pipelineID, runID string, outputJSON bool) error {
 	if run.StartedAt != "" {
 		fmt.Printf("Started: %s\n", run.StartedAt)
 	}
-	if run.EndedAt != "" {
-		fmt.Printf("Ended: %s\n", run.EndedAt)
+	if run.CompletedAt != "" {
+		fmt.Printf("Completed: %s\n", run.CompletedAt)
+	}
+	if run.DurationMS > 0 {
+		fmt.Printf("Duration: %s\n", time.Duration(run.DurationMS)*time.Millisecond)
+	}
+	if run.ErrorMessage != "" {
+		fmt.Printf("Error: %s\n", run.ErrorMessage)
 	}
 	return nil
 }

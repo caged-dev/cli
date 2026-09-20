@@ -267,23 +267,46 @@ type Pipeline struct {
 	AccountID   string            `json:"account_id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
+	Status      string            `json:"status"`  // active, archived
+	Version     int               `json:"version"` // Incremented on update.
 	Stages      []StageDefinition `json:"stages"`
 	Defaults    StageDefaults     `json:"defaults,omitempty"`
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 }
 
-// StageDefinition describes a pipeline stage.
+// StageDefinition describes a pipeline stage. It mirrors the server's
+// pipeline.StageDefinition field for field, because `caged pipeline create
+// -f file.json` decodes the user's file into this type and re-encodes it:
+// any field missing here is silently stripped from the definition that
+// reaches the API, and any field here that the server does not know is
+// silently ignored by it.
 type StageDefinition struct {
-	Name        string          `json:"name"`
-	Type        string          `json:"type"` // command, approval, gate, eval
-	Command     string          `json:"command,omitempty"`
-	Template    string          `json:"template,omitempty"`
-	Timeout     string          `json:"timeout,omitempty"`
-	DependsOn   []string        `json:"depends_on,omitempty"`
-	RequireAck  bool            `json:"require_ack,omitempty"`
-	Condition   *StageCondition `json:"condition,omitempty"`
-	MaxAttempts int             `json:"max_attempts,omitempty"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"` // command, await_approval, gate, eval, a2a
+	Description string            `json:"description,omitempty"`
+	Command     string            `json:"command,omitempty"`
+	Template    string            `json:"template,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	// Timeout is a Go duration in nanoseconds, matching the server's
+	// time.Duration field: it is a JSON number, not "5m".
+	Timeout   time.Duration   `json:"timeout,omitempty"`
+	Retry     *RetryPolicy    `json:"retry,omitempty"`
+	OnFailure string          `json:"on_failure,omitempty"` // stop, continue, retry
+	DependsOn []string        `json:"depends_on,omitempty"`
+	Condition *StageCondition `json:"condition,omitempty"`
+	// Config is the stage-type-specific config (approval, gate, eval, a2a).
+	// Kept raw so the client never has to understand it to pass it on.
+	Config json.RawMessage `json:"config,omitempty"`
+}
+
+// RetryPolicy defines how a stage handles transient failures. Retries are
+// what the server reads; a bare max_attempts on the stage is not a field it
+// has ever had.
+type RetryPolicy struct {
+	MaxAttempts int           `json:"max_attempts"`
+	Backoff     time.Duration `json:"backoff"`
+	MaxBackoff  time.Duration `json:"max_backoff"`
 }
 
 // StageCondition configures conditional stage execution.
@@ -295,34 +318,38 @@ type StageCondition struct {
 
 // StageDefaults holds default values for stages.
 type StageDefaults struct {
-	Template    string `json:"template,omitempty"`
-	Timeout     string `json:"timeout,omitempty"`
-	MaxAttempts int    `json:"max_attempts,omitempty"`
+	Template  string        `json:"template,omitempty"`
+	Timeout   time.Duration `json:"timeout,omitempty"`
+	Retry     *RetryPolicy  `json:"retry,omitempty"`
+	OnFailure string        `json:"on_failure,omitempty"`
 }
 
-// Run represents a pipeline run.
+// Run represents a pipeline run. The server's field for the end of a run is
+// completed_at; there is no ended_at and no output — run outputs live in the
+// state store, reachable through ListState.
 type Run struct {
-	ID         string     `json:"id"`
-	PipelineID string     `json:"pipeline_id"`
-	Status     string     `json:"status"` // pending, running, paused, succeeded, failed, canceled
-	Trigger    string     `json:"trigger"`
-	Input      RunInput   `json:"input,omitempty"`
-	Output     *RunOutput `json:"output,omitempty"`
-	StartedAt  string     `json:"started_at,omitempty"`
-	EndedAt    string     `json:"ended_at,omitempty"`
-	CreatedAt  string     `json:"created_at"`
+	ID           string   `json:"id"`
+	PipelineID   string   `json:"pipeline_id"`
+	PipelineName string   `json:"pipeline_name,omitempty"`
+	AccountID    string   `json:"account_id,omitempty"`
+	Status       string   `json:"status"` // pending, running, paused, succeeded, failed, canceled
+	Trigger      string   `json:"trigger"`
+	Input        RunInput `json:"input,omitempty"`
+	StartedAt    string   `json:"started_at,omitempty"`
+	CompletedAt  string   `json:"completed_at,omitempty"`
+	DurationMS   int64    `json:"duration_ms,omitempty"`
+	ErrorMessage string   `json:"error_message,omitempty"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at,omitempty"`
 }
 
 // RunInput is input to a pipeline run.
 type RunInput struct {
-	Env    map[string]string `json:"env,omitempty"`
-	Repo   string            `json:"repo,omitempty"`
-	Branch string            `json:"branch,omitempty"`
-}
-
-// RunOutput holds outputs from a completed run.
-type RunOutput struct {
-	State map[string]any `json:"state,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	Repo      string            `json:"repo,omitempty"`
+	Branch    string            `json:"branch,omitempty"`
+	Commit    string            `json:"commit,omitempty"`
+	Variables map[string]string `json:"variables,omitempty"`
 }
 
 // CreatePipelineRequest is the request body for creating a pipeline.
@@ -333,7 +360,10 @@ type CreatePipelineRequest struct {
 	Defaults    StageDefaults     `json:"defaults,omitempty"`
 }
 
-// StartRunRequest is the request body for starting a pipeline run.
+// StartRunRequest is the request body for starting a pipeline run. The
+// server's startRunRequest accepts only these four keys — a run's commit and
+// input variables are readable on the Run but cannot be set at start, so
+// there is nothing here to set them with.
 type StartRunRequest struct {
 	Trigger string            `json:"trigger,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
