@@ -17,6 +17,9 @@ func printSandboxInfo(s *api.Sandbox) {
 		fmt.Printf("  IP:       %s\n", s.IP)
 	}
 	if s.Budget > 0 {
-		fmt.Printf("  Budget:   $%.2f\n", s.Budget)
+		// Recorded and reported against, not enforced: nothing stops a
+		// sandbox that runs past it.
+		fmt.Printf("  Budget:   $%.2f (not enforced)\n", s.Budget)
 	}
+	fmt.Printf("  Cost:     $%.2f\n", s.Cost)
 }

@@ -40,10 +40,11 @@ func cmdList(args []string) error {
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "ID\tSTATUS\tTEMPLATE\tCPUs\tMEMORY\tCREATED\n") //nolint:errcheck // tabwriter buffers; errors surface on Flush
+		fmt.Fprintf(w, "ID\tSTATUS\tTEMPLATE\tCPUs\tMEMORY\tCOST\tCREATED\n") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 		for _, s := range sandboxes {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%dMB\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
-				s.ID, s.Status, s.Template, s.CPUs, s.MemoryMB, s.CreatedAt)
+			// Cost is always sent by the API, so $0.00 is a real figure.
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%dMB\t$%.2f\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
+				s.ID, s.Status, s.Template, s.CPUs, s.MemoryMB, s.Cost, s.CreatedAt)
 		}
 		return w.Flush()
 

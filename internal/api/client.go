@@ -35,19 +35,34 @@ func NewClient(baseURL, apiKey string) *Client {
 	}
 }
 
-// Sandbox represents a sandbox in API responses.
+// Sandbox represents a sandbox in API responses. Every field here is one
+// the API's SandboxResponse actually populates: a field the server never
+// sends decodes to a zero that is indistinguishable from real data, which
+// is how `spent` — a name no Caged API has ever sent — sat here reading 0
+// for every sandbox.
+//
+// Deliberately absent, because the API declares them and no current path
+// fills them in: init_script, timeout and config.
 type Sandbox struct {
-	ID          string  `json:"id"`
-	Status      string  `json:"status"`
-	Template    string  `json:"template"`
-	IP          string  `json:"ip"`
-	CPUs        int     `json:"cpus"`
-	MemoryMB    int     `json:"memory_mb"`
-	DiskGB      int     `json:"disk_gb"`
-	NetworkMode string  `json:"network_mode"`
-	CreatedAt   string  `json:"created_at"`
-	Budget      float64 `json:"budget,omitempty"`
-	Spent       float64 `json:"spent,omitempty"`
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	Template    string `json:"template"`
+	IP          string `json:"ip"`
+	CPUs        int    `json:"cpus"`
+	MemoryMB    int    `json:"memory_mb"`
+	DiskGB      int    `json:"disk_gb"`
+	NetworkMode string `json:"network_mode"`
+	RepoURL     string `json:"repo_url,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	// StartedAt and StoppedAt are omitted by the API until they happen;
+	// empty means "not yet", not "unknown".
+	StartedAt string `json:"started_at,omitempty"`
+	StoppedAt string `json:"stopped_at,omitempty"`
+	// Budget is what the sandbox was created with, omitted when unset.
+	Budget float64 `json:"budget,omitempty"`
+	// Cost is dollars spent so far. The API always sends it, including
+	// zero, so a zero here is a real "nothing spent yet".
+	Cost float64 `json:"cost"`
 }
 
 // CreateSandboxRequest is the request body for creating a sandbox.
