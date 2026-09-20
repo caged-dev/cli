@@ -15,9 +15,11 @@ import (
 func cmdUp(args []string) error {
 	fs := flag.NewFlagSet("up", flag.ExitOnError)
 	template := fs.String("template", "", "Override template from .caged.yaml")
-	cpus := fs.Int("cpus", 0, "Override CPU count")
-	memory := fs.Int("memory", 0, "Override memory in MB")
-	disk := fs.Int("disk", 0, "Override disk in GB")
+	// Ranges come from cagefile.DefaultLimits, which mirrors the API's
+	// own bounds — see internal/cagefile/limits.go.
+	cpus := fs.Int("cpus", 0, fmt.Sprintf("Override CPU count (1-%d, 0 = use config/server default)", cagefile.MaxCPU))
+	memory := fs.Int("memory", 0, fmt.Sprintf("Override memory in MB (1-%d, 0 = use config/server default)", cagefile.MaxMemoryMB))
+	disk := fs.Int("disk", 0, fmt.Sprintf("Override disk in GB (1-%d, 0 = use config/server default)", cagefile.MaxDiskGB))
 	network := fs.String("network", "", "Override network mode")
 	allowlist := fs.String("allowlist", "", "Override allowlist (comma-separated)")
 	repo := fs.String("repo", "", "Repository URL to clone")
