@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -193,11 +194,16 @@ type LogEntry struct {
 	Message   string `json:"message"`
 }
 
-// GetLogs retrieves sandbox event logs.
-func (c *Client) GetLogs(ctx context.Context, sandboxID string, follow bool) ([]LogEntry, error) {
+// GetLogs retrieves the last tail entries of a sandbox's event log. Passing
+// tail <= 0 leaves the server's default (100) in place.
+//
+// There is no streaming variant: the endpoint is a plain GET that returns a
+// window of the log, and the `follow=true` this used to send was a query
+// parameter the API has never read. Following is polling, in the caller.
+func (c *Client) GetLogs(ctx context.Context, sandboxID string, tail int) ([]LogEntry, error) {
 	path := "/v1/sandboxes/" + sandboxID + "/logs"
-	if follow {
-		path += "?follow=true"
+	if tail > 0 {
+		path += "?tail=" + strconv.Itoa(tail)
 	}
 	var logs []LogEntry
 	if err := c.do(ctx, http.MethodGet, path, nil, &logs); err != nil {
