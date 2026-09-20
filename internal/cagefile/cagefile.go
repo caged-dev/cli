@@ -3,7 +3,9 @@ package cagefile
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -82,21 +84,41 @@ func Parse(data []byte) (*Config, error) {
 	return &cfg, nil
 }
 
-// Validate checks the config for errors.
+// Validate checks the config for errors, using the resource ceilings the
+// API enforces.
 func (c *Config) Validate() error {
+	return c.ValidateWithLimits(DefaultLimits())
+}
+
+// ValidateWithLimits checks the config against a given set of resource
+// ceilings. Callers that learn the server's real limits can pass them in;
+// everyone else uses Validate.
+//
+// Every bound checked here is one the API checks too, with the same
+// numbers, so that a config this accepts is a config the server accepts. A
+// bound the CLI invents is a promise the server never made.
+func (c *Config) ValidateWithLimits(limits Limits) error {
 	var errs []string
 
 	if c.Template == "" {
 		errs = append(errs, "template is required (e.g., 'node', 'python', or full: 'node-22', 'python-312')")
 	}
-	if c.Resources.CPU < 0 || c.Resources.CPU > 16 {
-		errs = append(errs, fmt.Sprintf("resources.cpu must be 1-16, got %d", c.Resources.CPU))
+	if c.Resources.CPU < 0 || c.Resources.CPU > limits.MaxCPU {
+		errs = append(errs, fmt.Sprintf("resources.cpu must be 0-%d (0 = default), got %d", limits.MaxCPU, c.Resources.CPU))
 	}
-	if c.Resources.Memory < 0 || c.Resources.Memory > 32768 {
-		errs = append(errs, fmt.Sprintf("resources.memory must be 128-32768 (MB), got %d", c.Resources.Memory))
+	if c.Resources.Memory < 0 || c.Resources.Memory > limits.MaxMemoryMB {
+		errs = append(errs, fmt.Sprintf("resources.memory must be 0-%d (MB, 0 = default), got %d", limits.MaxMemoryMB, c.Resources.Memory))
 	}
-	if c.Resources.Disk < 0 || c.Resources.Disk > 100 {
-		errs = append(errs, fmt.Sprintf("resources.disk must be 1-100 (GB), got %d", c.Resources.Disk))
+	if c.Resources.Disk < 0 || c.Resources.Disk > limits.MaxDiskGB {
+		errs = append(errs, fmt.Sprintf("resources.disk must be 0-%d (GB, 0 = default), got %d", limits.MaxDiskGB, c.Resources.Disk))
+	}
+	// The API rejects an env key containing '=', a space, a tab or a
+	// newline. Catching it here keeps the failure local rather than
+	// spending a create round trip on a 400.
+	for _, k := range slices.Sorted(maps.Keys(c.Env)) {
+		if strings.ContainsAny(k, "= \t\n") {
+			errs = append(errs, fmt.Sprintf("invalid env key %q: must not contain '=', spaces, tabs or newlines", k))
+		}
 	}
 	if c.Budget < 0 {
 		errs = append(errs, "budget must be non-negative")

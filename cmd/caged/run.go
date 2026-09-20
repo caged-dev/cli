@@ -5,14 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+
+	"github.com/caged-dev/cli/internal/cagefile"
 )
 
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	template := fs.String("template", "node", "Sandbox template (node, python, or full: node-22, python-312, minimal)")
-	cpus := fs.Int("cpus", 2, "Number of vCPUs")
-	memory := fs.Int("memory", 512, "Memory in MB")
-	disk := fs.Int("disk", 5, "Disk in GB")
+	// Ranges come from cagefile.DefaultLimits, which mirrors the API's
+	// own bounds — see internal/cagefile/limits.go.
+	cpus := fs.Int("cpus", 2, fmt.Sprintf("Number of vCPUs (1-%d)", cagefile.MaxCPU))
+	memory := fs.Int("memory", 512, fmt.Sprintf("Memory in MB (1-%d)", cagefile.MaxMemoryMB))
+	disk := fs.Int("disk", 5, fmt.Sprintf("Disk in GB (1-%d)", cagefile.MaxDiskGB))
 	network := fs.String("network", "full", "Network mode: full, none, allowlist")
 	allowlist := fs.String("allowlist", "", "Comma-separated host allowlist")
 	repo := fs.String("repo", "", "Git repository to clone")

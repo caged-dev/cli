@@ -73,7 +73,8 @@ caged up
 
 | Key | Applied by the API? |
 |---|---|
-| `template`, `resources`, `network_mode`, `allowed_hosts`, `env`, `packages`, `agents`, `repo` | Yes |
+| `template`, `network_mode`, `allowed_hosts`, `env`, `packages`, `agents`, `repo` | Yes |
+| `resources.cpu` / `.memory` / `.disk` | Yes — capped at **8 vCPU**, **8192 MB**, **50 GB**. Omit a field (or set `0`) to take the server default. `caged up` checks these locally using the same bounds the API enforces, so a config it accepts is one the API accepts |
 | `timeout` | Yes — clamped to your plan's maximum idle timeout |
 | `budget` | Recorded, and `caged list` reports cost against it. **Nothing enforces it**: a sandbox that passes its budget keeps running |
 | `secrets`, `init_script` | Sent, but **no current API path applies them**. `caged up` prints a warning when you set either; run the equivalent with `caged exec` in the meantime |
