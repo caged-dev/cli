@@ -122,6 +122,34 @@ func TestMerge(t *testing.T) {
 			},
 		},
 		{
+			name: "flags override everything they set",
+			base: Config{Template: "node", Resources: Resources{CPU: 1, Memory: 256, Disk: 5},
+				Timeout: 300, Budget: 1, InitScript: "make", NetworkMode: "full",
+				AllowedHosts: []string{"a"}, Env: map[string]string{"A": "1"},
+				Packages: []string{"p"}, Agents: []string{"aider"},
+				Repo: RepoConfig{URL: "u", Token: "t", TokenEnv: "te", Branch: "b", Commit: "c", Subdirectory: "s"}},
+			override: Config{Template: "python", Resources: Resources{CPU: 4, Memory: 2048, Disk: 20},
+				Timeout: 900, Budget: 9, InitScript: "npm ci", NetworkMode: "none",
+				AllowedHosts: []string{"b"}, Env: map[string]string{"B": "2"},
+				Packages: []string{"q"}, Agents: []string{"claude-code"},
+				Repo: RepoConfig{URL: "u2", Token: "t2", TokenEnv: "te2", Branch: "b2", Commit: "c2", Subdirectory: "s2"}},
+			check: func(t *testing.T, c *Config) {
+				if c.Template != "python" || c.Resources.CPU != 4 || c.Resources.Memory != 2048 ||
+					c.Resources.Disk != 20 || c.Timeout != 900 || c.Budget != 9 ||
+					c.InitScript != "npm ci" || c.NetworkMode != "none" ||
+					len(c.AllowedHosts) != 1 || c.AllowedHosts[0] != "b" ||
+					c.Packages[0] != "q" || c.Agents[0] != "claude-code" ||
+					c.Repo.URL != "u2" || c.Repo.Token != "t2" || c.Repo.TokenEnv != "te2" ||
+					c.Repo.Branch != "b2" || c.Repo.Commit != "c2" || c.Repo.Subdirectory != "s2" {
+					t.Errorf("override not fully applied: %+v", c)
+				}
+				// Env merges rather than replacing.
+				if c.Env["A"] != "1" || c.Env["B"] != "2" {
+					t.Errorf("Env = %v, want both keys", c.Env)
+				}
+			},
+		},
+		{
 			name:     "init script override",
 			base:     Config{InitScript: "make"},
 			override: Config{InitScript: "npm ci"},

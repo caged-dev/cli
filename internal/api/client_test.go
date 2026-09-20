@@ -166,3 +166,72 @@ func TestDo_APIErrorIsStructured(t *testing.T) {
 		t.Errorf("Error() = %q", apiErr.Error())
 	}
 }
+
+func TestGetLogs_SendsTailParameter(t *testing.T) {
+	tests := []struct {
+		name     string
+		tail     int
+		wantPath string
+	}{
+		{"explicit tail", 25, "/v1/sandboxes/cage_abc/logs?tail=25"},
+		{"zero leaves the server default", 0, "/v1/sandboxes/cage_abc/logs"},
+		{"negative is not sent", -5, "/v1/sandboxes/cage_abc/logs"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotPath string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.RequestURI()
+				_, _ = w.Write([]byte(`[{"timestamp":"2026-09-20T10:00:00Z","type":"lifecycle","message":"booted"}]`))
+			}))
+			defer srv.Close()
+
+			logs, err := NewClient(srv.URL, "k").GetLogs(context.Background(), "cage_abc", tt.tail)
+			if err != nil {
+				t.Fatalf("GetLogs: %v", err)
+			}
+			if gotPath != tt.wantPath {
+				t.Errorf("path = %q, want %q", gotPath, tt.wantPath)
+			}
+			if len(logs) != 1 || logs[0].Message != "booted" {
+				t.Errorf("logs = %+v", logs)
+			}
+		})
+	}
+}
+
+func TestListSandboxes_DecodesCost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("[" + sandboxResponseBody + `,{"id":"cage_new","status":"creating","template":"node-22","cpus":2,"memory_mb":512,"disk_gb":5,"network_mode":"full","created_at":"2026-09-20T11:00:00Z","cost":0}]`))
+	}))
+	defer srv.Close()
+
+	sandboxes, err := NewClient(srv.URL, "k").ListSandboxes(context.Background())
+	if err != nil {
+		t.Fatalf("ListSandboxes: %v", err)
+	}
+	if len(sandboxes) != 2 {
+		t.Fatalf("len = %d, want 2", len(sandboxes))
+	}
+	if sandboxes[0].Cost != 1.37 {
+		t.Errorf("[0].Cost = %v, want 1.37", sandboxes[0].Cost)
+	}
+	if sandboxes[1].Cost != 0 {
+		t.Errorf("[1].Cost = %v, want 0", sandboxes[1].Cost)
+	}
+}
+
+func TestExec_ReturnsExitCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"output":"fail\n","exit_code":2}`))
+	}))
+	defer srv.Close()
+
+	out, code, err := NewClient(srv.URL, "k").Exec(context.Background(), "cage_abc", "false")
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if out != "fail\n" || code != 2 {
+		t.Errorf("out=%q code=%d, want \"fail\\n\" and 2", out, code)
+	}
+}
