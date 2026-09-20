@@ -55,8 +55,11 @@ network_mode: allowlist
 allowed_hosts:
   - registry.npmjs.org
   - github.com
-budget: 5.00
+timeout: 900      # Idle seconds before the sandbox sleeps
+budget: 5.00      # Recorded and reported against — not a cap
 init_script: "npm install"
+secrets:
+  - ANTHROPIC_API_KEY
 env:
   NODE_ENV: development
 ```
@@ -65,6 +68,17 @@ Then just run:
 ```bash
 caged up
 ```
+
+### What each key does
+
+| Key | Applied by the API? |
+|---|---|
+| `template`, `resources`, `network_mode`, `allowed_hosts`, `env`, `packages`, `agents`, `repo` | Yes |
+| `timeout` | Yes — clamped to your plan's maximum idle timeout |
+| `budget` | Recorded, and `caged list` reports cost against it. **Nothing enforces it**: a sandbox that passes its budget keeps running |
+| `secrets`, `init_script` | Sent, but **no current API path applies them**. `caged up` prints a warning when you set either; run the equivalent with `caged exec` in the meantime |
+
+Flags override the file: `caged up --timeout 1800 --cpus 4`.
 
 ## Commands
 
@@ -79,7 +93,7 @@ caged up
 | `caged destroy <id>` | Destroy a sandbox |
 | `caged sleep <id>` | Pause sandbox (saves costs) |
 | `caged wake <id>` | Resume a sleeping sandbox |
-| `caged logs <id>` | Stream sandbox events |
+| `caged logs <id>` | Show sandbox events (`-f` to follow, `--tail N` for window size) |
 | `caged mcp <id>` | Run an MCP server over stdio, bridged to a sandbox |
 | `caged version` | Show version |
 
