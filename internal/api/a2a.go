@@ -51,7 +51,10 @@ type A2ASkillExample struct {
 	Output json.RawMessage `json:"output,omitempty"`
 }
 
-// A2AAgentCard is the discovery document for an A2A agent.
+// A2AAgentCard is the discovery document for an A2A agent. It mirrors the
+// server's a2a.AgentCard: `caged a2a discover --json` prints what was
+// decoded, so a field missing here is a field missing from the user's view
+// of the agent.
 type A2AAgentCard struct {
 	Name           string         `json:"name"`
 	Description    string         `json:"description"`
@@ -64,12 +67,35 @@ type A2AAgentCard struct {
 	Authentication *A2AAuthConfig `json:"authentication,omitempty"`
 	Skills         []A2ASkill     `json:"skills,omitempty"`
 	Provider       *A2AProvider   `json:"provider,omitempty"`
+
+	// Trust and verification.
+	Signature   string `json:"signature,omitempty"`
+	PublicKeyID string `json:"public_key_id,omitempty"`
+	Verified    bool   `json:"verified,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
+
+	// Extensions carries the Caged-specific half of the card, including the
+	// agent's trust score.
+	Extensions *A2AAgentCardExtensions `json:"extensions,omitempty"`
+}
+
+// A2AAgentCardExtensions holds the Caged-specific card fields.
+type A2AAgentCardExtensions struct {
+	CagedAgentID string  `json:"caged_agent_id,omitempty"`
+	PipelineID   string  `json:"pipeline_id,omitempty"`
+	Template     string  `json:"template,omitempty"`
+	TrustScore   int     `json:"trust_score,omitempty"`
+	MaxBudget    float64 `json:"max_budget,omitempty"`
+	NetworkMode  string  `json:"network_mode,omitempty"`
 }
 
 // A2AAuthConfig describes auth requirements for an agent.
 type A2AAuthConfig struct {
-	Type    string   `json:"type"`
-	Schemes []string `json:"schemes,omitempty"`
+	Type         string   `json:"type"`
+	Schemes      []string `json:"schemes,omitempty"`
+	TokenURL     string   `json:"token_url,omitempty"`
+	Scopes       []string `json:"scopes,omitempty"`
+	Instructions string   `json:"instructions,omitempty"`
 }
 
 // A2AProvider describes the agent provider.
@@ -77,49 +103,113 @@ type A2AProvider struct {
 	Name         string `json:"name"`
 	Organization string `json:"organization,omitempty"`
 	URL          string `json:"url,omitempty"`
+	ContactEmail string `json:"contact_email,omitempty"`
 }
 
-// A2ATask represents a task delegated to an A2A agent.
+// A2ATask represents a task delegated to an A2A agent, mirroring the
+// server's a2a.Task.
 type A2ATask struct {
-	ID            string          `json:"id"`
-	SessionID     string          `json:"session_id,omitempty"`
-	ToAgentURL    string          `json:"to_agent_url"`
-	SkillID       string          `json:"skill_id,omitempty"`
-	Status        string          `json:"status"`
-	StatusMessage string          `json:"status_message,omitempty"`
-	Progress      *A2AProgress    `json:"progress,omitempty"`
-	Input         json.RawMessage `json:"input,omitempty"`
-	Output        json.RawMessage `json:"output,omitempty"`
-	Priority      int             `json:"priority,omitempty"`
-	CreatedAt     string          `json:"created_at"`
-	UpdatedAt     string          `json:"updated_at"`
-	StartedAt     *string         `json:"started_at,omitempty"`
-	CompletedAt   *string         `json:"completed_at,omitempty"`
+	ID           string `json:"id"`
+	SessionID    string `json:"session_id,omitempty"`
+	ParentTaskID string `json:"parent_task_id,omitempty"`
+
+	FromAgentURL string `json:"from_agent_url"`
+	ToAgentURL   string `json:"to_agent_url"`
+	SkillID      string `json:"skill_id,omitempty"`
+
+	Status        string       `json:"status"`
+	StatusMessage string       `json:"status_message,omitempty"`
+	Progress      *A2AProgress `json:"progress,omitempty"`
+
+	Messages  []A2AMessage    `json:"messages,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	Output    json.RawMessage `json:"output,omitempty"`
+	Artifacts []A2AArtifact   `json:"artifacts,omitempty"`
+
+	Priority int            `json:"priority,omitempty"`
+	Deadline string         `json:"deadline,omitempty"`
+	Budget   *A2ATaskBudget `json:"budget,omitempty"`
+
+	Metadata map[string]string `json:"metadata,omitempty"`
+	Tags     []string          `json:"tags,omitempty"`
+
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	StartedAt   string `json:"started_at,omitempty"`
+	CompletedAt string `json:"completed_at,omitempty"`
+
+	AuthContext *A2AAuthContext `json:"auth_context,omitempty"`
+}
+
+// A2ATaskBudget is the resource ceiling recorded on a task.
+type A2ATaskBudget struct {
+	MaxCostUSD float64 `json:"max_cost_usd,omitempty"`
+	// MaxDuration is a Go duration in nanoseconds, matching the server's
+	// time.Duration field.
+	MaxDuration   time.Duration `json:"max_duration,omitempty"`
+	MaxTokens     int           `json:"max_tokens,omitempty"`
+	MaxIterations int           `json:"max_iterations,omitempty"`
+}
+
+// A2AAuthContext carries the task's authorization context.
+type A2AAuthContext struct {
+	AgentIdentity string            `json:"agent_identity,omitempty"`
+	SessionID     string            `json:"session_id,omitempty"`
+	AccountID     string            `json:"account_id,omitempty"`
+	Scopes        []string          `json:"scopes,omitempty"`
+	Claims        map[string]string `json:"claims,omitempty"`
+}
+
+// A2AArtifact is a file or data blob produced by a task.
+type A2AArtifact struct {
+	ID        string `json:"id"`
+	TaskID    string `json:"task_id"`
+	Name      string `json:"name"`
+	MimeType  string `json:"mime_type"`
+	Size      int64  `json:"size"`
+	URI       string `json:"uri"`
+	Checksum  string `json:"checksum,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 // A2AProgress tracks progress on a running task.
 type A2AProgress struct {
 	Percentage  int    `json:"percentage,omitempty"`
 	CurrentStep string `json:"current_step,omitempty"`
+	TotalSteps  int    `json:"total_steps,omitempty"`
+	StepNumber  int    `json:"step_number,omitempty"`
 	Message     string `json:"message,omitempty"`
 }
 
 // A2AMessage is a message in an A2A task conversation.
 type A2AMessage struct {
-	ID        string    `json:"id"`
-	TaskID    string    `json:"task_id"`
-	Role      string    `json:"role"`
-	Parts     []A2APart `json:"parts"`
-	CreatedAt string    `json:"created_at"`
+	ID        string            `json:"id"`
+	TaskID    string            `json:"task_id"`
+	Role      string            `json:"role"` // user, agent, system
+	Parts     []A2APart         `json:"parts"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	CreatedAt string            `json:"created_at"`
 }
 
 // A2APart is a single piece of content in a message.
 type A2APart struct {
-	Type     string          `json:"type"`
+	Type     string          `json:"type"` // text, file, data, artifact, image, code
 	Text     string          `json:"text,omitempty"`
 	Data     json.RawMessage `json:"data,omitempty"`
-	Name     string          `json:"name,omitempty"`
 	MimeType string          `json:"mime_type,omitempty"`
+
+	// For file and artifact parts.
+	Name     string `json:"name,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	Size     int64  `json:"size,omitempty"`
+	Checksum string `json:"checksum,omitempty"`
+
+	// For code parts.
+	Language string `json:"language,omitempty"`
+
+	// Inline content, base64 for binary.
+	Content  string `json:"content,omitempty"`
+	Encoding string `json:"encoding,omitempty"`
 }
 
 // ============================================================================
