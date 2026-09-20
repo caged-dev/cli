@@ -101,6 +101,11 @@ func (c *Config) Validate() error {
 	if c.Budget < 0 {
 		errs = append(errs, "budget must be non-negative")
 	}
+	// The API rejects a negative timeout outright rather than clamping it,
+	// so catch it here instead of spending a round trip on a 400.
+	if c.Timeout < 0 {
+		errs = append(errs, fmt.Sprintf("timeout must be non-negative seconds, got %d", c.Timeout))
+	}
 
 	validModes := map[string]bool{"": true, "full": true, "none": true, "allowlist": true}
 	if !validModes[c.NetworkMode] {
@@ -152,6 +157,9 @@ func (c *Config) Merge(override Config) {
 		for k, v := range override.Env {
 			c.Env[k] = v
 		}
+	}
+	if len(override.Secrets) > 0 {
+		c.Secrets = override.Secrets
 	}
 	if len(override.Packages) > 0 {
 		c.Packages = override.Packages

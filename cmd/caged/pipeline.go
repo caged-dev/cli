@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/caged-dev/cli/internal/api"
 )
@@ -124,11 +125,13 @@ func cmdPipelineList(args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSTAGES\tCREATED")
+	fmt.Fprintln(w, "ID\tNAME\tSTAGES\tCREATED") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, p := range pipelines {
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", p.ID, p.Name, len(p.Stages), p.CreatedAt)
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", p.ID, p.Name, len(p.Stages), p.CreatedAt) //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	}
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
 	return nil
 }
 
@@ -166,6 +169,8 @@ func cmdPipelineGet(args []string) error {
 	if pipeline.Description != "" {
 		fmt.Printf("Description: %s\n", pipeline.Description)
 	}
+	fmt.Printf("Status: %s\n", pipeline.Status)
+	fmt.Printf("Version: %d\n", pipeline.Version)
 	fmt.Printf("Created: %s\n", pipeline.CreatedAt)
 	fmt.Printf("\nStages (%d):\n", len(pipeline.Stages))
 	for i, s := range pipeline.Stages {
@@ -193,7 +198,8 @@ func cmdPipelineDelete(args []string) error {
 	if !*force {
 		fmt.Printf("Delete pipeline %s? [y/N] ", pipelineID)
 		var confirm string
-		fmt.Scanln(&confirm)
+		// A read failure leaves confirm empty, which aborts below.
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" {
 			fmt.Println("Aborted")
 			return nil
@@ -295,9 +301,9 @@ func cmdPipelineRuns(args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "RUN ID\tSTATUS\tTRIGGER\tSTARTED\tENDED")
+	fmt.Fprintln(w, "RUN ID\tSTATUS\tTRIGGER\tSTARTED\tCOMPLETED") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, r := range runs {
-		ended := r.EndedAt
+		ended := r.CompletedAt
 		if ended == "" {
 			ended = "-"
 		}
@@ -305,9 +311,11 @@ func cmdPipelineRuns(args []string) error {
 		if started == "" {
 			started = "-"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.ID, r.Status, r.Trigger, started, ended)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", r.ID, r.Status, r.Trigger, started, ended) //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	}
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
 	return nil
 }
 
@@ -336,8 +344,14 @@ func cmdPipelineGetRun(pipelineID, runID string, outputJSON bool) error {
 	if run.StartedAt != "" {
 		fmt.Printf("Started: %s\n", run.StartedAt)
 	}
-	if run.EndedAt != "" {
-		fmt.Printf("Ended: %s\n", run.EndedAt)
+	if run.CompletedAt != "" {
+		fmt.Printf("Completed: %s\n", run.CompletedAt)
+	}
+	if run.DurationMS > 0 {
+		fmt.Printf("Duration: %s\n", time.Duration(run.DurationMS)*time.Millisecond)
+	}
+	if run.ErrorMessage != "" {
+		fmt.Printf("Error: %s\n", run.ErrorMessage)
 	}
 	return nil
 }
@@ -449,7 +463,7 @@ func cmdPipelineStateList(args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "KEY\tTYPE\tSIZE\tCREATED BY\tEXPIRES")
+	fmt.Fprintln(w, "KEY\tTYPE\tSIZE\tCREATED BY\tEXPIRES") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, e := range entries {
 		expires := "-"
 		if e.ExpiresAt != "" {
@@ -459,9 +473,11 @@ func cmdPipelineStateList(args []string) error {
 		if entryType == "" {
 			entryType = "string"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n", e.Key, entryType, e.SizeBytes, e.CreatedBy, expires)
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n", e.Key, entryType, e.SizeBytes, e.CreatedBy, expires) //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	}
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
 	return nil
 }
 
@@ -590,7 +606,8 @@ func cmdPipelineStateDelete(args []string) error {
 	if !*force {
 		fmt.Printf("Delete state key %q? [y/N] ", key)
 		var confirm string
-		fmt.Scanln(&confirm)
+		// A read failure leaves confirm empty, which aborts below.
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" {
 			fmt.Println("Aborted")
 			return nil

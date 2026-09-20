@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -35,19 +36,34 @@ func NewClient(baseURL, apiKey string) *Client {
 	}
 }
 
-// Sandbox represents a sandbox in API responses.
+// Sandbox represents a sandbox in API responses. Every field here is one
+// the API's SandboxResponse actually populates: a field the server never
+// sends decodes to a zero that is indistinguishable from real data, which
+// is how `spent` — a name no Caged API has ever sent — sat here reading 0
+// for every sandbox.
+//
+// Deliberately absent, because the API declares them and no current path
+// fills them in: init_script, timeout and config.
 type Sandbox struct {
-	ID          string  `json:"id"`
-	Status      string  `json:"status"`
-	Template    string  `json:"template"`
-	IP          string  `json:"ip"`
-	CPUs        int     `json:"cpus"`
-	MemoryMB    int     `json:"memory_mb"`
-	DiskGB      int     `json:"disk_gb"`
-	NetworkMode string  `json:"network_mode"`
-	CreatedAt   string  `json:"created_at"`
-	Budget      float64 `json:"budget,omitempty"`
-	Spent       float64 `json:"spent,omitempty"`
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	Template    string `json:"template"`
+	IP          string `json:"ip"`
+	CPUs        int    `json:"cpus"`
+	MemoryMB    int    `json:"memory_mb"`
+	DiskGB      int    `json:"disk_gb"`
+	NetworkMode string `json:"network_mode"`
+	RepoURL     string `json:"repo_url,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	// StartedAt and StoppedAt are omitted by the API until they happen;
+	// empty means "not yet", not "unknown".
+	StartedAt string `json:"started_at,omitempty"`
+	StoppedAt string `json:"stopped_at,omitempty"`
+	// Budget is what the sandbox was created with, omitted when unset.
+	Budget float64 `json:"budget,omitempty"`
+	// Cost is dollars spent so far. The API always sends it, including
+	// zero, so a zero here is a real "nothing spent yet".
+	Cost float64 `json:"cost"`
 }
 
 // CreateSandboxRequest is the request body for creating a sandbox.
@@ -67,6 +83,23 @@ type CreateSandboxRequest struct {
 	Budget      float64           `json:"budget,omitempty"`      // Budget in USD
 	Packages    []string          `json:"packages,omitempty"`    // Pre-install packages
 	Agents      []string          `json:"agents,omitempty"`      // AI agents to install
+
+	// Timeout is the idle timeout in seconds after which the API puts the
+	// sandbox to sleep. The server clamps it to the account tier maximum;
+	// it rejects a negative value, so callers must not send one.
+	Timeout int `json:"timeout,omitempty"`
+
+	// Secrets names the account secrets to inject, and InitScript is the
+	// shell command run once the sandbox is up.
+	//
+	// Both are part of the server's create payload and are sent under the
+	// names it declares, but no current server path applies them: they are
+	// decoded into the request type and never reach the sandbox service.
+	// The CLI sends them anyway — silently discarding a user's config is
+	// the bug this replaced — and `caged up` warns when a config sets one,
+	// so nobody believes a secret was injected when it was not.
+	Secrets    []string `json:"secrets,omitempty"`
+	InitScript string   `json:"init_script,omitempty"`
 }
 
 // APIError represents a structured API error response.
@@ -161,11 +194,16 @@ type LogEntry struct {
 	Message   string `json:"message"`
 }
 
-// GetLogs retrieves sandbox event logs.
-func (c *Client) GetLogs(ctx context.Context, sandboxID string, follow bool) ([]LogEntry, error) {
+// GetLogs retrieves the last tail entries of a sandbox's event log. Passing
+// tail <= 0 leaves the server's default (100) in place.
+//
+// There is no streaming variant: the endpoint is a plain GET that returns a
+// window of the log, and the `follow=true` this used to send was a query
+// parameter the API has never read. Following is polling, in the caller.
+func (c *Client) GetLogs(ctx context.Context, sandboxID string, tail int) ([]LogEntry, error) {
 	path := "/v1/sandboxes/" + sandboxID + "/logs"
-	if follow {
-		path += "?follow=true"
+	if tail > 0 {
+		path += "?tail=" + strconv.Itoa(tail)
 	}
 	var logs []LogEntry
 	if err := c.do(ctx, http.MethodGet, path, nil, &logs); err != nil {
@@ -235,23 +273,46 @@ type Pipeline struct {
 	AccountID   string            `json:"account_id"`
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
+	Status      string            `json:"status"`  // active, archived
+	Version     int               `json:"version"` // Incremented on update.
 	Stages      []StageDefinition `json:"stages"`
 	Defaults    StageDefaults     `json:"defaults,omitempty"`
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 }
 
-// StageDefinition describes a pipeline stage.
+// StageDefinition describes a pipeline stage. It mirrors the server's
+// pipeline.StageDefinition field for field, because `caged pipeline create
+// -f file.json` decodes the user's file into this type and re-encodes it:
+// any field missing here is silently stripped from the definition that
+// reaches the API, and any field here that the server does not know is
+// silently ignored by it.
 type StageDefinition struct {
-	Name        string          `json:"name"`
-	Type        string          `json:"type"` // command, approval, gate, eval
-	Command     string          `json:"command,omitempty"`
-	Template    string          `json:"template,omitempty"`
-	Timeout     string          `json:"timeout,omitempty"`
-	DependsOn   []string        `json:"depends_on,omitempty"`
-	RequireAck  bool            `json:"require_ack,omitempty"`
-	Condition   *StageCondition `json:"condition,omitempty"`
-	MaxAttempts int             `json:"max_attempts,omitempty"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"` // command, await_approval, gate, eval, a2a
+	Description string            `json:"description,omitempty"`
+	Command     string            `json:"command,omitempty"`
+	Template    string            `json:"template,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+	// Timeout is a Go duration in nanoseconds, matching the server's
+	// time.Duration field: it is a JSON number, not "5m".
+	Timeout   time.Duration   `json:"timeout,omitempty"`
+	Retry     *RetryPolicy    `json:"retry,omitempty"`
+	OnFailure string          `json:"on_failure,omitempty"` // stop, continue, retry
+	DependsOn []string        `json:"depends_on,omitempty"`
+	Condition *StageCondition `json:"condition,omitempty"`
+	// Config is the stage-type-specific config (approval, gate, eval, a2a).
+	// Kept raw so the client never has to understand it to pass it on.
+	Config json.RawMessage `json:"config,omitempty"`
+}
+
+// RetryPolicy defines how a stage handles transient failures. Retries are
+// what the server reads; a bare max_attempts on the stage is not a field it
+// has ever had.
+type RetryPolicy struct {
+	MaxAttempts int           `json:"max_attempts"`
+	Backoff     time.Duration `json:"backoff"`
+	MaxBackoff  time.Duration `json:"max_backoff"`
 }
 
 // StageCondition configures conditional stage execution.
@@ -263,34 +324,38 @@ type StageCondition struct {
 
 // StageDefaults holds default values for stages.
 type StageDefaults struct {
-	Template    string `json:"template,omitempty"`
-	Timeout     string `json:"timeout,omitempty"`
-	MaxAttempts int    `json:"max_attempts,omitempty"`
+	Template  string        `json:"template,omitempty"`
+	Timeout   time.Duration `json:"timeout,omitempty"`
+	Retry     *RetryPolicy  `json:"retry,omitempty"`
+	OnFailure string        `json:"on_failure,omitempty"`
 }
 
-// Run represents a pipeline run.
+// Run represents a pipeline run. The server's field for the end of a run is
+// completed_at; there is no ended_at and no output — run outputs live in the
+// state store, reachable through ListState.
 type Run struct {
-	ID         string     `json:"id"`
-	PipelineID string     `json:"pipeline_id"`
-	Status     string     `json:"status"` // pending, running, paused, succeeded, failed, canceled
-	Trigger    string     `json:"trigger"`
-	Input      RunInput   `json:"input,omitempty"`
-	Output     *RunOutput `json:"output,omitempty"`
-	StartedAt  string     `json:"started_at,omitempty"`
-	EndedAt    string     `json:"ended_at,omitempty"`
-	CreatedAt  string     `json:"created_at"`
+	ID           string   `json:"id"`
+	PipelineID   string   `json:"pipeline_id"`
+	PipelineName string   `json:"pipeline_name,omitempty"`
+	AccountID    string   `json:"account_id,omitempty"`
+	Status       string   `json:"status"` // pending, running, paused, succeeded, failed, canceled
+	Trigger      string   `json:"trigger"`
+	Input        RunInput `json:"input,omitempty"`
+	StartedAt    string   `json:"started_at,omitempty"`
+	CompletedAt  string   `json:"completed_at,omitempty"`
+	DurationMS   int64    `json:"duration_ms,omitempty"`
+	ErrorMessage string   `json:"error_message,omitempty"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at,omitempty"`
 }
 
 // RunInput is input to a pipeline run.
 type RunInput struct {
-	Env    map[string]string `json:"env,omitempty"`
-	Repo   string            `json:"repo,omitempty"`
-	Branch string            `json:"branch,omitempty"`
-}
-
-// RunOutput holds outputs from a completed run.
-type RunOutput struct {
-	State map[string]any `json:"state,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	Repo      string            `json:"repo,omitempty"`
+	Branch    string            `json:"branch,omitempty"`
+	Commit    string            `json:"commit,omitempty"`
+	Variables map[string]string `json:"variables,omitempty"`
 }
 
 // CreatePipelineRequest is the request body for creating a pipeline.
@@ -301,7 +366,10 @@ type CreatePipelineRequest struct {
 	Defaults    StageDefaults     `json:"defaults,omitempty"`
 }
 
-// StartRunRequest is the request body for starting a pipeline run.
+// StartRunRequest is the request body for starting a pipeline run. The
+// server's startRunRequest accepts only these four keys — a run's commit and
+// input variables are readable on the Run but cannot be set at start, so
+// there is nothing here to set them with.
 type StartRunRequest struct {
 	Trigger string            `json:"trigger,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
