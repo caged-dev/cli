@@ -99,13 +99,15 @@ func cmdA2AAgentsList(_ []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tPUBLIC\tENABLED\tSKILLS")
+	fmt.Fprintln(w, "ID\tNAME\tPUBLIC\tENABLED\tSKILLS") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, a := range agents {
 		skillCount := len(a.Skills)
-		fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%d\n",
+		fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%d\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
 			a.ID, a.Name, a.Public, a.Enabled, skillCount)
 	}
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		return fmt.Errorf("writing output: %w", err)
+	}
 
 	return nil
 }

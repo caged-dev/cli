@@ -204,7 +204,9 @@ func warnUnappliedConfig(w io.Writer, cfg *cagefile.Config) {
 	if len(unapplied) == 0 {
 		return
 	}
-	fmt.Fprintf(w, "warning: %s sent to the API but not applied by any current server path; "+
+	// Best effort: a warning that cannot be written is not worth failing
+	// the launch over.
+	_, _ = fmt.Fprintf(w, "warning: %s sent to the API but not applied by any current server path; "+
 		"run the equivalent with `caged exec` until the API applies them\n",
 		strings.Join(unapplied, " and "))
 }

@@ -236,7 +236,7 @@ func (c *Client) DiscoverA2AAgent(ctx context.Context, agentURL string) (*A2AAge
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, &APIError{
@@ -283,7 +283,7 @@ func (c *Client) CreateA2ATask(ctx context.Context, agentURL string, req *Create
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, &APIError{
@@ -318,7 +318,7 @@ func (c *Client) GetA2ATask(ctx context.Context, agentURL, taskID string) (*A2AT
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, &APIError{
@@ -382,7 +382,7 @@ func (c *Client) SendA2AMessage(ctx context.Context, agentURL, taskID string, re
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, &APIError{
@@ -422,7 +422,7 @@ func (c *Client) CancelA2ATask(ctx context.Context, agentURL, taskID string, req
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		return &APIError{
