@@ -67,6 +67,23 @@ type CreateSandboxRequest struct {
 	Budget      float64           `json:"budget,omitempty"`      // Budget in USD
 	Packages    []string          `json:"packages,omitempty"`    // Pre-install packages
 	Agents      []string          `json:"agents,omitempty"`      // AI agents to install
+
+	// Timeout is the idle timeout in seconds after which the API puts the
+	// sandbox to sleep. The server clamps it to the account tier maximum;
+	// it rejects a negative value, so callers must not send one.
+	Timeout int `json:"timeout,omitempty"`
+
+	// Secrets names the account secrets to inject, and InitScript is the
+	// shell command run once the sandbox is up.
+	//
+	// Both are part of the server's create payload and are sent under the
+	// names it declares, but no current server path applies them: they are
+	// decoded into the request type and never reach the sandbox service.
+	// The CLI sends them anyway — silently discarding a user's config is
+	// the bug this replaced — and `caged up` warns when a config sets one,
+	// so nobody believes a secret was injected when it was not.
+	Secrets    []string `json:"secrets,omitempty"`
+	InitScript string   `json:"init_script,omitempty"`
 }
 
 // APIError represents a structured API error response.

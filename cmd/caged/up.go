@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,8 @@ func cmdUp(args []string) error {
 	repoBranch := fs.String("repo-branch", "", "Branch to checkout (default: main)")
 	repoCommit := fs.String("repo-commit", "", "Specific commit SHA to checkout")
 	repoSubdir := fs.String("repo-subdir", "", "Monorepo subdirectory to extract")
-	budgetFlag := fs.Float64("budget", 0, "Override budget in USD")
+	budgetFlag := fs.Float64("budget", 0, "Override budget in USD (recorded, not enforced)")
+	timeoutFlag := fs.Int("timeout", 0, "Override idle timeout in seconds before the sandbox sleeps")
 	envStr := fs.String("env", "", "Additional env vars (KEY=VAL,KEY2=VAL2)")
 	configFile := fs.String("config", "", "Path to config file (default: .caged.yaml)")
 	packagesStr := fs.String("packages", "", "Override packages to pre-install (comma-separated)")
@@ -67,6 +69,7 @@ func cmdUp(args []string) error {
 		Template:    *template,
 		NetworkMode: *network,
 		Budget:      *budgetFlag,
+		Timeout:     *timeoutFlag,
 		Resources: cagefile.Resources{
 			CPU:    *cpus,
 			Memory: *memory,
@@ -107,6 +110,44 @@ func cmdUp(args []string) error {
 		return err
 	}
 
+	req := buildCreateRequest(cfg)
+
+	fmt.Printf("Creating sandbox (template=%s", cfg.Template)
+	if cfg.Resources.CPU > 0 {
+		fmt.Printf(", cpus=%d", cfg.Resources.CPU)
+	}
+	if cfg.Resources.Memory > 0 {
+		fmt.Printf(", mem=%dMB", cfg.Resources.Memory)
+	}
+	if cfg.Budget > 0 {
+		fmt.Printf(", budget=$%.2f", cfg.Budget)
+	}
+	if cfg.Timeout > 0 {
+		fmt.Printf(", timeout=%ds", cfg.Timeout)
+	}
+	if cfg.Repo.URL != "" {
+		fmt.Printf(", repo=%s", cfg.Repo.URL)
+	}
+	fmt.Println(")...")
+
+	warnUnappliedConfig(os.Stderr, cfg)
+
+	ctx := context.Background()
+	sandbox, err := client.CreateSandbox(ctx, req)
+	if err != nil {
+		return fmt.Errorf("creating sandbox: %w", err)
+	}
+
+	printSandboxInfo(sandbox)
+	fmt.Printf("\nConnect: caged connect %s\n", sandbox.ID)
+	return nil
+}
+
+// buildCreateRequest turns a resolved .caged.yaml config into the API create
+// payload. Every field the config can carry is mapped here: a field parsed
+// from the user's yaml and then left out of the request is a setting the
+// user wrote, the CLI accepted, and nobody ever applied.
+func buildCreateRequest(cfg *cagefile.Config) *createSandboxRequest {
 	req := &createSandboxRequest{
 		Template:    cfg.Template,
 		CPUs:        cfg.Resources.CPU,
@@ -114,12 +155,17 @@ func cmdUp(args []string) error {
 		DiskGB:      cfg.Resources.Disk,
 		NetworkMode: cfg.NetworkMode,
 		Budget:      cfg.Budget,
+		Timeout:     cfg.Timeout,
+		InitScript:  cfg.InitScript,
 	}
 	if len(cfg.AllowedHosts) > 0 {
 		req.Allowlist = cfg.AllowedHosts
 	}
 	if len(cfg.Env) > 0 {
 		req.Env = cfg.Env
+	}
+	if len(cfg.Secrets) > 0 {
+		req.Secrets = cfg.Secrets
 	}
 	// Repo config: use config or CLI flags.
 	if cfg.Repo.URL != "" {
@@ -140,29 +186,25 @@ func cmdUp(args []string) error {
 	if len(cfg.Agents) > 0 {
 		req.Agents = cfg.Agents
 	}
+	return req
+}
 
-	fmt.Printf("Creating sandbox (template=%s", cfg.Template)
-	if cfg.Resources.CPU > 0 {
-		fmt.Printf(", cpus=%d", cfg.Resources.CPU)
+// warnUnappliedConfig reports the config keys that are sent to the API but
+// that no current server path acts on. They are still sent — dropping them
+// silently is worse — but the user is told, so a missing secret is not
+// mistaken for one that was injected and ignored by the agent.
+func warnUnappliedConfig(w io.Writer, cfg *cagefile.Config) {
+	var unapplied []string
+	if len(cfg.Secrets) > 0 {
+		unapplied = append(unapplied, "secrets")
 	}
-	if cfg.Resources.Memory > 0 {
-		fmt.Printf(", mem=%dMB", cfg.Resources.Memory)
+	if cfg.InitScript != "" {
+		unapplied = append(unapplied, "init_script")
 	}
-	if cfg.Budget > 0 {
-		fmt.Printf(", budget=$%.2f", cfg.Budget)
+	if len(unapplied) == 0 {
+		return
 	}
-	if cfg.Repo.URL != "" {
-		fmt.Printf(", repo=%s", cfg.Repo.URL)
-	}
-	fmt.Println(")...")
-
-	ctx := context.Background()
-	sandbox, err := client.CreateSandbox(ctx, req)
-	if err != nil {
-		return fmt.Errorf("creating sandbox: %w", err)
-	}
-
-	printSandboxInfo(sandbox)
-	fmt.Printf("\nConnect: caged connect %s\n", sandbox.ID)
-	return nil
+	fmt.Fprintf(w, "warning: %s sent to the API but not applied by any current server path; "+
+		"run the equivalent with `caged exec` until the API applies them\n",
+		strings.Join(unapplied, " and "))
 }

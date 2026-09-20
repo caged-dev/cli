@@ -17,7 +17,10 @@ func cmdRun(args []string) error {
 	allowlist := fs.String("allowlist", "", "Comma-separated host allowlist")
 	repo := fs.String("repo", "", "Git repository to clone")
 	envStr := fs.String("env", "", "Environment variables (KEY=VAL,KEY2=VAL2)")
-	budgetFlag := fs.Float64("budget", 0, "Maximum spend in USD")
+	// Not a cap: the platform records a sandbox budget and reports cost
+	// against it, but nothing stops a sandbox that exceeds it.
+	budgetFlag := fs.Float64("budget", 0, "Budget in USD to record for this sandbox (reported against, not enforced)")
+	timeoutFlag := fs.Int("timeout", 0, "Idle timeout in seconds before the sandbox sleeps (0 = server default)")
 	packagesStr := fs.String("packages", "", "Comma-separated packages to pre-install (e.g., @anthropic-ai/claude-code,typescript)")
 	agentsStr := fs.String("agents", "", "Comma-separated AI agents to install (e.g., claude-code,aider,codex)")
 
@@ -49,6 +52,9 @@ func cmdRun(args []string) error {
 	}
 	if *budgetFlag > 0 {
 		req.Budget = *budgetFlag
+	}
+	if *timeoutFlag > 0 {
+		req.Timeout = *timeoutFlag
 	}
 	if *packagesStr != "" {
 		req.Packages = strings.Split(*packagesStr, ",")
