@@ -221,9 +221,9 @@ func cmdMCPServerList(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "ALIAS\tSTATUS\tAUTH\tVERIFIED\tID\tENDPOINT")
+	fmt.Fprintln(w, "ALIAS\tSTATUS\tAUTH\tVERIFIED\tID\tENDPOINT") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, srv := range servers {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
 			srv.Alias, srv.Status, srv.AuthKind, srv.Verified, srv.ID, srv.Endpoint)
 	}
 	if err := w.Flush(); err != nil {
@@ -436,7 +436,7 @@ func cmdMCPBindings(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "BINDING\tSERVER\tSUBJECT\tPINNED\tTOOLS")
+	fmt.Fprintln(w, "BINDING\tSERVER\tSUBJECT\tPINNED\tTOOLS") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, b := range bindings {
 		subject := b.SubjectKind
 		if b.SubjectID != "" {
@@ -446,7 +446,7 @@ func cmdMCPBindings(args []string) error {
 		if len(b.ToolAllowlist) > 0 {
 			tools = strings.Join(b.ToolAllowlist, ",")
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\n", b.ID, b.ServerID, subject, b.Pinned, tools)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%v\t%s\n", b.ID, b.ServerID, subject, b.Pinned, tools) //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	}
 	return w.Flush()
 }
@@ -524,13 +524,13 @@ func printToolTable(tools []api.MCPTool) {
 	}
 	sort.Slice(tools, func(i, j int) bool { return tools[i].NamespacedName < tools[j].NamespacedName })
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "TOOL (as the agent calls it)\tSTATE\tTOKENS~\tFLAGS")
+	fmt.Fprintln(w, "TOOL (as the agent calls it)\tSTATE\tTOKENS~\tFLAGS") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	held := 0
 	for _, tool := range tools {
 		if tool.State != "active" {
 			held++
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
 			tool.NamespacedName, tool.State, tool.DefinitionTokensEstimate, strings.Join(tool.Flags, ","))
 	}
 	_ = w.Flush()
@@ -657,13 +657,13 @@ func cmdMCPReadiness(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "ALIAS\tSTATUS\tALLOWED/TOTAL\tREMEDY")
+	fmt.Fprintln(w, "ALIAS\tSTATUS\tALLOWED/TOTAL\tREMEDY") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	blocked := 0
 	for _, a := range advice {
 		if a.Status != "allowed" && a.Status != "needs_approval" {
 			blocked++
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d/%d\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%d/%d\t%s\n", //nolint:errcheck // tabwriter buffers; errors surface on Flush
 			a.Alias, a.Status, a.ToolsAllowed, a.ToolsEvaluated, a.Remedy)
 	}
 	if err := w.Flush(); err != nil {
@@ -768,9 +768,9 @@ func cmdMCPCatalogue(args []string) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "CATALOGUE ID\tALIAS\tAUTH\tNAME")
+	fmt.Fprintln(w, "CATALOGUE ID\tALIAS\tAUTH\tNAME") //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	for _, e := range entries {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ID, e.DefaultAlias, e.AuthKind, e.DisplayName)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", e.ID, e.DefaultAlias, e.AuthKind, e.DisplayName) //nolint:errcheck // tabwriter buffers; errors surface on Flush
 	}
 	if err := w.Flush(); err != nil {
 		return err
@@ -1092,7 +1092,7 @@ func printPolicyAdvice(advice *api.MCPPolicyAdvice, serverID, personaID string) 
 	fmt.Printf("\npolicy: %s (%d of %d approved tools allowed)\n",
 		advice.Status, advice.ToolsAllowed, advice.ToolsEvaluated)
 	fmt.Printf("%s\n", wrapText(advice.Explanation, 78))
-	if advice.Remedy == "allow_mcp_server" && advice.GrantedRule == false {
+	if advice.Remedy == "allow_mcp_server" && !advice.GrantedRule {
 		fmt.Printf("\n  caged mcp allow %s", serverID)
 		if personaID != "" {
 			fmt.Printf(" --persona %s", personaID)
