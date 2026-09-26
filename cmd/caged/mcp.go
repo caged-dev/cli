@@ -25,7 +25,20 @@ type mcpTransport interface {
 //	{ "mcpServers": { "caged": { "command": "caged", "args": ["mcp", "<sandbox-id>"] } } }
 func cmdMCP(args []string) error {
 	if len(args) < 1 || args[0] == "" {
-		return fmt.Errorf("usage: caged mcp <sandbox-id>")
+		printMCPUsage()
+		return nil
+	}
+	// The management subcommands live in mcpservers.go. The BARE form —
+	// `caged mcp <sandbox-id>` — stays the stdio bridge, because that is what
+	// an MCP client config invokes and changing it would break every
+	// claude_desktop_config.json in the field. A subcommand name is never a
+	// sandbox id, so the two cannot collide.
+	if isMCPSubcommand(args[0]) {
+		if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+			printMCPUsage()
+			return nil
+		}
+		return cmdMCPServers(args)
 	}
 	sandboxID := args[0]
 
